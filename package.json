@@ -1,0 +1,19 @@
+{
+  "name": "planephobia",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Error: no test specified'; false"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexd-alves/planephobia.git"
+  },
+  "author": "Alex Alves (HolySeabiscuits)",
+  "license": "Unlicense",
+  "bugs": {
+    "url": "https://github.com/alexd-alves/planephobia/issues"
+  },
+  "homepage": "https://github.com/alexd-alves/planephobia#readme",
+  "description": ""
+}
