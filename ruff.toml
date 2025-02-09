@@ -1,0 +1,12 @@
+# Reduce line length and indent width
+indent-width = 2
+line-length = 70
+
+[format]
+quote-style = 'single'
+indent-style = 'space'
+line-ending = 'auto'
+
+# Enable auto-formatting of code examples in docstrings
+docstring-code-format = true
+docstring-code-line-length = 'dynamic'
