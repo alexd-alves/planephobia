@@ -1,20 +1,21 @@
 import contextlib
+import datetime
+import logging
 import os
 import threading
 import time
-from typing import Generator, Optional
+import traceback
+import typing
+from typing import Generator
 
+import aiohttp
 import discord
 import uvicorn
 import uvicorn.server
-from discord import app_commands
+from discord.ext import commands
 from dotenv import load_dotenv
 
 from db.db_app import app
-from items import all_armor, all_consumables
-
-# item = Consumable(all_armor[all_armor.index('rumshot')])
-# print(item.name)
 
 
 # Context manager to ensure db server starts and stops correctly
@@ -32,7 +33,106 @@ class Server(uvicorn.Server):
       thread.join()
 
 
-def main() -> int:
+# Core Bot
+class PlanephobiaBot(commands.Bot):
+  client: aiohttp.ClientSession
+  _uptime: datetime.datetime = datetime.timezone.utc
+
+  def __init__(
+    self,
+    prefix: str,
+    ext_dir: str,
+    *args: typing.Any,
+    **kwargs: typing.Any,
+  ) -> None:
+    intents = discord.Intents.all()
+    intents.members = True
+    intents.message_content = True
+    super().__init__(
+      *args,
+      **kwargs,
+      command_prefix=commands.when_mentioned_or(prefix),
+      intents=intents,
+    )
+    self.logger = logging.getLogger(self.__class__.__name__)
+    self.ext_dir = ext_dir
+    self.synced = False
+
+  async def _load_extensions(self) -> None:
+    if not os.path.isdir(self.ext_dir):
+      self.logger.error(
+        f'Extension directory {self.ext_dir} does not exist.'
+      )
+      return
+    for filename in os.listdir(os.path.abspath(self.ext_dir)):
+      if filename.endswith('.py') and not filename.startswith('_'):
+        try:
+          await self.load_extension(f'{self.ext_dir}.{filename[:-3]}')
+          self.logger.info(f'Loaded extension {filename[:-3]}')
+        except commands.ExtensionError:
+          self.logger.error(
+            f'Failed to load extension {filename[:-3]}\n{traceback.format_exc()}'
+          )
+
+  async def on_error(
+    self, event_method: str, *args: typing.Any, **kwargs: typing.Any
+  ) -> None:
+    if (
+      isinstance(args[0], discord.HTTPException)
+      and args[0].status == 429
+    ):
+      # Rate limit encountered
+      retry_after = args[0].headers.get('Retry-After')
+      if retry_after:
+        self.logger.warning(
+          f'Rate limit encountered in {event_method}. Retrying in {retry_after}.\n{traceback.format_exc()}'
+        )
+        await time.sleep(int(retry_after) + 1)
+      else:
+        self.logger.warning(
+          f'Rate limit encountered in {event_method}. No retry time given.\n{traceback.format_exc()}'
+        )
+        await time.sleep(1)
+    else:
+      # Handle other errors
+      self.logger.error(
+        f'An error occurred in {event_method}.\n{traceback.format_exc()}'
+      )
+
+  async def on_ready(self) -> None:
+    self.logger.info(f'Logged in as {self.user} ({self.user.id})')
+
+  async def setup_hook(self) -> None:
+    self.client = aiohttp.ClientSession()
+
+    await self._load_extensions()
+    if not self.synced:
+      await self.tree.sync()
+      self.logger.info('Synced command tree')
+
+  async def close(self) -> None:
+    await super().close()
+    await self.client.close()
+
+  def run(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+    load_dotenv()
+    try:
+      super().run(str(os.getenv('DISCORD_TOKEN')), *args, **kwargs)
+    except (discord.LoginFailure, KeyboardInterrupt):
+      self.logger.info('Exiting...')
+      exit()
+
+  @property
+  def user(self) -> discord.ClientUser:
+    assert super().user, 'Bot is not ready yet'
+    return typing.cast(discord.ClientUser, super().user)
+
+  @property
+  def uptime(self) -> datetime.timedelta:
+    return datetime.timezone.utc - self._uptime
+
+
+def main() -> None:
   # Set up uvicorn for db
   config = uvicorn.Config(app=app, host='localhost', port=5000)
   server = Server(config=config)
@@ -40,192 +140,13 @@ def main() -> int:
     address, port = server.config.bind_socket().getsockname()
     print(f'HTTP server is running on http://{address}.{port}')
 
-    # Get environment variables
-    load_dotenv()
-    # DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
-    DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-    # TODO: Not needed in prod
-    GUILD_ID = os.getenv('GUILD_ID')
-
-    # Define intents
-    intents = discord.Intents.default()
-    intents.message_content = True
-
-    # Define client
-    client = discord.Client(intents=intents)
-    tree = app_commands.CommandTree(client)
-
-    # Sync slash commands
-    @client.event
-    async def on_ready():
-      await tree.sync(guild=discord.Object(id=GUILD_ID))
-      print(f'Logged in as {client.user}')
-
-    # Deal with rate limits
-    @client.event
-    async def on_error(event, *args, **kwargs):
-      if (
-        isinstance(args[0], discord.HTTPException)
-        and args[0].status == 429
-      ):
-        # Rate limit encountered
-        print('Rate limit encountered.')
-        retry_after = args[0].headers.get('Retry-After')
-        if retry_after:
-          await time.sleep(int(retry_after) + 1)
-        else:
-          await time.sleep(1)
-      else:
-        # Handle other errors
-        print(f'An error occurred: {args[0]}')
-
-    # TODO: Remove command guild in prod
-    # to allow slash commands in all guild
-
-    # Greet
-    @tree.command(
-      name='greet',
-      description='Greet tagged user - Test command',
-      guild=discord.Object(id=GUILD_ID),
+    logging.basicConfig(
+      level=logging.INFO,
+      format='[%(asctime)s] %(levelname)s: %(message)s',
     )
-    async def greet(
-      interaction: discord.Interaction, user: discord.Member
-    ):
-      await interaction.response.send_message(
-        f'Hello, {user.mention}!'
-      )
+    bot = PlanephobiaBot(prefix='!', ext_dir='cogs')
 
-    # A list of item types for testing
-    @tree.command(
-      name='items',
-      description='Lists available items - Test command',
-      guild=discord.Object(id=GUILD_ID),
-    )
-    @app_commands.choices(
-      type=[
-        app_commands.Choice(name='consumables', value='consumables'),
-        app_commands.Choice(name='armour', value='armour'),
-      ]
-    )
-    async def items(
-      interaction: discord.Interaction,
-      type: Optional[app_commands.Choice[str]],
-    ):
-      if not type:
-        consumables_list = []
-
-        for item in all_consumables:
-          consumables_list.append(
-            '**' + item.name + '** - ' + item.description
-          )
-          consumables_list.append(
-            '* Value: ' + str(item.value) + ' tokens'
-          )
-          consumables_list.append(
-            '* +' + str(item.amount) + ' ' + item.stat
-          )
-        consumables_list = '\n'.join(consumables_list)
-
-        armor_list = []
-
-        for item in all_armor:
-          bonuses = ', '.join(
-            '{}: +{}'.format(*i) for i in item.bonuses.items()
-          )
-
-          armor_list.append(
-            '**'
-            + item.name
-            + '** - '
-            + item.type.capitalize()
-            + '. '
-            + item.description
-          )
-          armor_list.append('* DEF: +' + str(item.amount))
-          armor_list.append('* Also grants: ' + bonuses)
-          armor_list.append('* Value: ' + str(item.value) + ' tokens')
-        armor_list = '\n'.join(armor_list)
-
-        items_embed = discord.Embed(
-          title='Available Items',
-          description='The items available are:',
-          type='rich',
-        )
-
-        items_embed.add_field(
-          name='Consumables', value=consumables_list, inline=True
-        )
-        items_embed.add_field(
-          name='Armour', value=armor_list, inline=True
-        )
-      elif type.value == 'consumables':
-        item_list = []
-
-        for item in all_consumables:
-          item_list.append(
-            '**' + item.name + '** - ' + item.description
-          )
-          item_list.append('* Value: ' + str(item.value) + ' tokens')
-          item_list.append('* +' + str(item.amount) + ' ' + item.stat)
-        item_list = '\n'.join(item_list)
-
-        items_embed = discord.Embed(
-          title='Available Items',
-          description='The items available are:',
-          type='rich',
-        )
-
-        items_embed.add_field(
-          name='Consumables', value=item_list, inline=False
-        )
-      elif type.value == 'armour':
-        item_list = []
-
-        for item in all_armor:
-          bonuses = ', '.join(
-            '{}: +{}'.format(*i) for i in item.bonuses.items()
-          )
-
-          item_list.append(
-            '**'
-            + item.name
-            + '** - '
-            + item.type.capitalize()
-            + '. '
-            + item.description
-          )
-          item_list.append('* DEF: +' + str(item.amount))
-          item_list.append('* Also grants: ' + bonuses)
-          item_list.append('* Value: ' + str(item.value) + ' tokens')
-        item_list = '\n'.join(item_list)
-
-        items_embed = discord.Embed(
-          title='Available Items',
-          description='The items available are:',
-          type='rich',
-        )
-
-        items_embed.add_field(name='Armour', value=item_list)
-      await interaction.response.send_message(embed=items_embed)
-
-    # Help
-    @tree.command(
-      name='help',
-      description='A list of basic commands.',
-      guild=discord.Object(id=GUILD_ID),
-    )
-    async def help(interaction: discord.Interaction):
-      help_embed = discord.Embed(
-        title='Planephobia Commands', type='rich'
-      )
-      help_embed.add_field(
-        name='Basic Commands',
-        value='`/items`: Shows all available items.\n * Arguments:\n  - `type`: Optional',
-      )
-      await interaction.response.send_message(embed=help_embed)
-
-    # Run the bot
-    client.run(DISCORD_TOKEN)
+    bot.run()
 
 
 if __name__ == '__main__':
