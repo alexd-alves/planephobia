@@ -14,6 +14,7 @@ import uvicorn
 import uvicorn.server
 from discord.ext import commands
 from dotenv import load_dotenv
+from fastapi import FastAPI
 
 from db.db_app import app
 
@@ -42,6 +43,7 @@ class PlanephobiaBot(commands.Bot):
     self,
     prefix: str,
     ext_dir: str,
+    app: FastAPI,
     *args: typing.Any,
     **kwargs: typing.Any,
   ) -> None:
@@ -56,7 +58,8 @@ class PlanephobiaBot(commands.Bot):
     )
     self.logger = logging.getLogger(self.__class__.__name__)
     self.ext_dir = ext_dir
-    self.synced = False
+    self.app = app
+    self.synced = True
 
   async def _load_extensions(self) -> None:
     if not os.path.isdir(self.ext_dir):
@@ -144,7 +147,7 @@ def main() -> None:
       level=logging.INFO,
       format='[%(asctime)s] %(levelname)s: %(message)s',
     )
-    bot = PlanephobiaBot(prefix='!', ext_dir='cogs')
+    bot = PlanephobiaBot(prefix='!', ext_dir='cogs', app=app)
 
     bot.run()
 

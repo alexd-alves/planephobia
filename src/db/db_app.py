@@ -22,8 +22,8 @@ async def connectToDB():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   dbHost = await connectToDB()
-  app.db = dbHost
-  app.players = dbHost.players
+  app.db = dbHost['testing']
+  app.players = app.db['players']
   print('Connected to database.')
   yield
   print('Shutting down db connection.')
@@ -31,8 +31,3 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
-
-
-@app.get('/')
-async def root():
-  return {'message': 'PyMongo test'}

@@ -11,24 +11,13 @@ class CommandsCog(commands.Cog):
   def __init__(self, bot: commands.Bot) -> None:
     self.bot = bot
 
-  # Greet
-  @app_commands.command(
-    name='greet', description='Greet tagged user - Test command'
-  )
-  async def greet(
-    self,
-    interaction: discord.Interaction,
-    user: discord.Member,
-  ):
-    await interaction.response.send_message(f'Hello, {user.mention}!')
-
   # A list of item types for testing
   @app_commands.command(
     name='items',
     description='Lists available items - Test command',
   )
   @app_commands.choices(
-    itemtype=[
+    type=[
       app_commands.Choice(name='consumables', value='consumables'),
       app_commands.Choice(name='armour', value='armour'),
     ]
@@ -36,9 +25,9 @@ class CommandsCog(commands.Cog):
   async def items(
     self,
     interaction: discord.Interaction,
-    itemtype: Optional[app_commands.Choice[str]],
+    type: Optional[app_commands.Choice[str]],
   ) -> None:
-    if itemtype.value == 'consumables':
+    if type.value == 'consumables':
       item_list = []
 
       for item in all_consumables:
@@ -58,7 +47,7 @@ class CommandsCog(commands.Cog):
       items_embed.add_field(
         name='Consumables', value=item_list, inline=False
       )
-    elif itemtype.value == 'armour':
+    elif type.value == 'armour':
       item_list = []
 
       for item in all_armor:
@@ -146,10 +135,58 @@ class CommandsCog(commands.Cog):
       title='Planephobia Commands', type='rich'
     )
     help_embed.add_field(
+      name='Getting Started',
+      value='* `/start`: Registers Player.',
+      inline=False,
+    )
+    help_embed.add_field(
+      name='Developer Only',
+      value='* `/sync`: Re-sync all commands globally.\n* `/reload`: Reload an extension after changes. Use to avoid restarting application after command changes.\n  - `extension`: Required',
+    )
+    help_embed.add_field(
+      name='Testing Commands',
+      value='* `/items`: Shows all available items.\n  - `type`: Optional',
+      inline=False,
+    )
+    help_embed.add_field(
       name='Basic Commands',
-      value='`/items`: Shows all available items.\n * Arguments:\n  - `type`: Optional',
+      value='* `/profile`: Display Player profile.\n  - `user`: Optional\n* `/stats`: Display full Player stats.',
+      inline=False,
     )
     await interaction.response.send_message(embed=help_embed)
+
+  # Development utilities
+  # Extension Reload
+  @app_commands.command(
+    name='reload', description='Reload an extension.'
+  )
+  async def reload(
+    self, interaction: discord.Integration, extension: str
+  ):
+    await self.bot.reload_extension(f'{extension}')
+    await interaction.response.send_message(f'Reloaded {extension}.')
+
+  @reload.autocomplete('extension')
+  async def extension_autocomplete(
+    self, interaction: discord.Interaction, current: str
+  ) -> list[app_commands.Choice[str]]:
+    extensions = list(self.bot.extensions.keys())
+    options: list[app_commands.Choice[str]] = []
+    for ext in extensions:
+      if ext.startswith(current):
+        options.append(app_commands.Choice(name=ext, value=ext))
+    return options[:25]
+
+  # Command Sync
+  @app_commands.command(
+    name='sync', description='Re-sync all commands.'
+  )
+  @commands.is_owner()
+  async def sync(self, interaction: discord.Interaction):
+    synced = await self.bot.tree.sync()
+    await interaction.response.send_message(
+      f'Synced {len(synced)} commands globally.'
+    )
 
 
 async def setup(bot: commands.Bot):
