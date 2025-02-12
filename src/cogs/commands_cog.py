@@ -4,7 +4,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from items import all_armor, all_consumables
+import utility.embeds as embeds
+from core.items import all_armor, all_consumables
 
 
 class CommandsCog(commands.Cog):
@@ -131,29 +132,7 @@ class CommandsCog(commands.Cog):
     description='A list of basic commands.',
   )
   async def help(self, interaction: discord.Interaction):
-    help_embed = discord.Embed(
-      title='Planephobia Commands', type='rich'
-    )
-    help_embed.add_field(
-      name='Getting Started',
-      value='* `/start`: Registers Player.',
-      inline=False,
-    )
-    help_embed.add_field(
-      name='Developer Only',
-      value='* `/sync`: Re-sync all commands globally.\n* `/reload`: Reload an extension after changes. Use to avoid restarting application after command changes.\n  - `extension`: Required',
-    )
-    help_embed.add_field(
-      name='Testing Commands',
-      value='* `/items`: Shows all available items.\n  - `type`: Optional',
-      inline=False,
-    )
-    help_embed.add_field(
-      name='Basic Commands',
-      value='* `/profile`: Display Player profile.\n  - `user`: Optional\n* `/stats`: Display full Player stats.',
-      inline=False,
-    )
-    await interaction.response.send_message(embed=help_embed)
+    await interaction.response.send_message(embed=embeds.HelpEmbed())
 
   # Development utilities
   # Extension Reload

@@ -7,17 +7,19 @@ from discord import app_commands
 from discord.ext import commands
 from pydantic import ValidationError
 
-from db.models.playerModels import Player
-from db.routes import addPlayer, getPlayerByDiscordId, updatePlayer
-from embeds import (
-  ExceptionEmbed,
-  ExistingPlayerEmbed,
-  NotRegisteredEmbed,
-  ProfileEmbed,
-  StatsEmbed,
-  ValidationErrorEmbed,
-)
-from titles import PlayerTitles
+import core.player as player
+import core.titles as titles
+import utility.embeds as embeds
+from db.models.playerModels import Player, Stats
+from db.routes import addPlayer, getPlayerByDiscordId
+
+worship_dance_outcomes = {
+  'You fail miserably, do you even know where left and right are? You have upset GhostKai.\nYou get -5 Favour.': -5,
+  'You look ridiculous, but at least you managed to stay on your feet. However, GhostKai has standards.\n You get -1 Favour.': -1,
+  'Mediocre, but it will have to do.\nYou get +1 Favour!': 1,
+  'Your dance is adequate, GhostKai is pleased.\nYou get +3 Favour!': 3,
+  'The light of our Lord GhostKai shines upon you! Your dance has greatly pleased Him.\nYou get +5 Favour!': 5,
+}
 
 
 class PlayerCog(commands.Cog):
@@ -35,26 +37,29 @@ class PlayerCog(commands.Cog):
     )
     if player:
       await interaction.response.send_message(
-        embed=ExistingPlayerEmbed()
+        embed=embeds.ExistingPlayerEmbed()
       )
     else:
+      newStats = Stats(
+        level=1,
+        currentxp=0,
+        requiredxp=100,
+        maxhp=10,
+        maxsan=5,
+        hp=10,
+        atk=1,
+        dfs=1,
+        san=5,
+        rst=1,
+        per=1,
+        sth=1,
+      )
       newPlayer = Player(
         discord_id=interaction.user.id,
-        title=PlayerTitles._0,
-        stats={
-          'level': 1,
-          'currentxp': 0,
-          'requiredxp': 100,
-          'maxhp': 10,
-          'hp': 10,
-          'atk': 1,
-          'dfs': 1,
-          'san': 5,
-          'rst': 1,
-          'per': 1,
-          'sth': 1,
-        },
+        title=titles.PlayerTitles._0,
+        stats=newStats,
         tokens=100,
+        favor=100,
         registered_at=datetime.now(),
       )
       addedPlayer = await addPlayer(req, player=newPlayer)
@@ -84,14 +89,14 @@ class PlayerCog(commands.Cog):
         )
         if playerObject is ValidationError:
           return await interaction.response.send_message(
-            embed=ValidationErrorEmbed(
+            embed=embeds.ValidationErrorEmbed(
               extras=' * **`player.py: 79`:** `playerObject` is of Type `ValidationError`.',
               display=True,
             )
           )
       except Exception as e:
         return await interaction.response.send_message(
-          embed=ExceptionEmbed(extras=e)
+          embed=embeds.ExceptionEmbed(extras=e)
         )
     else:
       try:
@@ -100,20 +105,20 @@ class PlayerCog(commands.Cog):
         )
         if playerObject is ValidationError:
           return await interaction.response.send_message(
-            embed=ValidationErrorEmbed(
+            embed=embeds.ValidationErrorEmbed(
               extras=' * **`player.py/profile(default user) - getPlayerByDiscordId()`:** `playerObject` is of Type `ValidationError`.',
               display=True,
             )
           )
       except Exception as e:
         return await interaction.response.send_message(
-          embed=ExceptionEmbed(extras=e)
+          embed=embeds.ExceptionEmbed(extras=e)
         )
 
     # Player Not Found
     if not playerObject:
       return await interaction.response.send_message(
-        embed=NotRegisteredEmbed()
+        embed=embeds.NotRegisteredEmbed()
       )
 
     # Get discord user to be able to display name and avatar
@@ -124,7 +129,7 @@ class PlayerCog(commands.Cog):
     registrationDate = playerObject.registered_at.strftime('%x')
 
     return await interaction.response.send_message(
-      embed=ProfileEmbed(
+      embed=embeds.ProfileEmbed(
         player=playerObject,
         stats=playerStats,
         user=discordUser,
@@ -149,14 +154,14 @@ class PlayerCog(commands.Cog):
       )
       if playerObject is ValidationError:
         return await interaction.response.send_message(
-          embed=ValidationErrorEmbed(
+          embed=embeds.ValidationErrorEmbed(
             extras=' * **`player.py/stats(default user) - getPlayerByDiscordId()`:** `playerObject` is of Type `ValidationError`.',
             display=True,
           )
         )
     except Exception as e:
       return await interaction.response.send_message(
-        embed=ExceptionEmbed(extras=e)
+        embed=embeds.ExceptionEmbed(extras=e)
       )
 
     # Player Not Found
@@ -172,7 +177,7 @@ class PlayerCog(commands.Cog):
     playerStats = playerObject.stats
 
     return await interaction.response.send_message(
-      embed=StatsEmbed(
+      embed=embeds.StatsEmbed(
         stats=playerStats,
         user=discordUser,
       )
@@ -201,62 +206,55 @@ class PlayerCog(commands.Cog):
       )
       if playerObject is ValidationError:
         return await interaction.response.send_message(
-          embed=ValidationErrorEmbed(
+          embed=embeds.ValidationErrorEmbed(
             extras=' * **`player.py/worship - getPlayerByDiscordId()`:** `playerObject` is of Type `ValidationError`.',
             display=True,
           )
         )
     except Exception as e:
       return await interaction.response.send_message(
-        embed=ExceptionEmbed(extras=e)
+        embed=embeds.ExceptionEmbed(extras=e)
       )
 
     if type.value == 'dance':
-      outcomes = [
-        'You fail miserably, do you even know where left and right are? You have upset GhostKai.\nYou get -5 Favour.',
-        'You look ridiculous, but at least you managed to stay on your feet. However, GhostKai has standards.\n You get -1 Favour.',
-        'Mediocre, but it will have to do.\nYou get +1 Favour!',
-        'Your dance is adequate, GhostKai is pleased.\nYou get +3 Favour!',
-        'The light of our Lord GhostKai shines upon you! Your dance has greatly pleased Him.\nYou get +5 Favour!',
-      ]
+      dance_result = random.choices(
+        list(worship_dance_outcomes.keys())
+      )
+      dance_result = dance_result[0]
 
-      # Choose outcome
-      result = random.choices(outcomes, weights=(5, 20, 35, 30, 10))
-      result = result[0]
+      # Calculate XP using gaussian distribution
+      xp_mu = playerObject.stats.level * 25
+      xp_sigma = playerObject.stats.level * 5
+      xp_result = int(random.gauss(xp_mu, xp_sigma))
 
-      # Add favor to existing
-      index = outcomes.index(result)
-      if index == 0:
-        playerObject.favor = playerObject.favor - 5
-      elif index == 1:
-        playerObject.favor = playerObject.favor - 1
-      elif index == 2:
-        playerObject.favor = playerObject.favor + 1
-      elif index == 3:
-        playerObject.favor = playerObject.favor + 3
-      elif index == 4:
-        playerObject.favor = playerObject.favor + 5
-
-      # Add XP
-      playerObject.stats.currentxp = playerObject.stats.currentxp + 10
-
-      # Update DB
       try:
-        await updatePlayer(
-          req, id=playerObject.id, player=playerObject
+        await player.update_favor(
+          req=req,
+          player=playerObject,
+          amount=worship_dance_outcomes.get(dance_result),
+        )
+        levelled_up = await player.update_xp(
+          req=req,
+          player=playerObject,
+          amount=xp_result,
         )
       except Exception as e:
         return await interaction.response.send_message(
-          embed=ExceptionEmbed(extras=e)
+          embed=embeds.ExceptionEmbed(extras=e)
         )
 
       await interaction.response.send_message(
         'You try to perform the Kitty Dance...'
       )
       response = await interaction.original_response()
+      if levelled_up:
+        return await interaction.followup.edit_message(
+          message_id=response.id,
+          content=f'{response.content}\n{dance_result}\nYou also gain {xp_result} XP.\nYou have levelled up!',
+        )
       return await interaction.followup.edit_message(
         message_id=response.id,
-        content=f'{response.content}\n{result}',
+        content=f'{response.content}\n{dance_result}\nYou also gain {xp_result} XP.',
       )
 
 

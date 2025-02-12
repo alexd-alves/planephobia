@@ -1,9 +1,15 @@
+from enum import IntEnum
+
 import discord
 
-from utility import EmbedColors
+
+class EmbedColors(IntEnum):
+  ERROR = 0x992D22
+  WARNING = 0xA84300
+  DEFAULT = 0x2C2F33
 
 
-# Unidentified Exceptions
+# region Exceptions
 class ExceptionEmbed(discord.Embed):
   def __init__(self, extras='', display=True):
     if not display:
@@ -18,7 +24,10 @@ class ExceptionEmbed(discord.Embed):
       )
 
 
-# Warnings
+# endregion
+
+
+# region Warnings
 class WarningEmbed(discord.Embed):
   def __init__(self, title, description, extras='', display=False):
     if not display:
@@ -72,6 +81,59 @@ class TypeErrorEmbed(WarningEmbed):
     )
 
 
+# endregion
+
+
+# region Basic Commands
+# # Help
+help_dev = [
+  '* `/sync`: Re-sync all commands globally.',
+  '* `/reload`: Reload an extension after changes. Use to avoid restarting application after command changes.',
+]
+help_test = [
+  '* `/items`: Shows all available items.',
+  '  - `type`: Optional',
+]
+help_basic = [
+  '* `/profile`: Display Player profile.',
+  '  - `user` (Optional).',
+  '* `/stats`: Display full Player stats.',
+  '* `/worship`: Worship our Lord GhostKai to obtain his Favour.',
+  '  - `type`: You can perform the following types of activities to worship:',
+  '    * `dance`: Perform the Kitty dance.',
+]
+
+
+class HelpEmbed(discord.Embed):
+  def __init__(self):
+    super().__init__(
+      color=EmbedColors.DEFAULT,
+      title='Planephobia Commands',
+    )
+    self.add_field(
+      name='Getting Started',
+      value='* `/start`: Registers Player.',
+      inline=False,
+    )
+    self.add_field(
+      name='Developer Only', value='\n'.join(help_dev), inline=False
+    )
+    self.add_field(
+      name='Testing Commands',
+      value='\n'.join(help_test),
+      inline=False,
+    )
+    self.add_field(
+      name='Basic Commands',
+      value='\n'.join(help_basic),
+      inline=False,
+    )
+
+
+# endregion
+
+
+# region Player Commands
 # Player Profile
 class ProfileEmbed(discord.Embed):
   def __init__(self, player, stats, user, date):
@@ -113,3 +175,6 @@ class StatsEmbed(discord.Embed):
     self.set_author(
       name=f'{user.name} - stats', icon_url=user.display_avatar.url
     )
+
+
+# endregion

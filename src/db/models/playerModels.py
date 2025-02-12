@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from titles import PlayerTitles
+import core.titles as titles
 
 # Default stats
 
@@ -42,7 +42,7 @@ class MortAssistStats(Stats):
 class Player(BaseModel):
   id: Optional[str] = Field(default_factory=str, alias='_id')
   discord_id: int
-  title: str = Field(default=PlayerTitles._1)
+  title: str = Field(default=titles.PlayerTitles._1)
   stats: Stats
   tokens: int
   favor: int
