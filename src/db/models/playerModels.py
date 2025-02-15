@@ -13,30 +13,34 @@ class Stats(BaseModel):
   currentxp: int
   requiredxp: int
   maxhp: int
-  maxsan: int
   hp: int
+  maxsan: int
+  san: int
   atk: int
   dfs: int
-  san: int
   rst: int
   per: int
   sth: int
 
 
 # Class-specific stats
-class MortAssistStats(Stats):
-  level: int
-  currentxp: int
-  requiredxp: int
-  maxhp: int
-  maxsan: int
-  hp: int
-  atk: int
-  dfs: int
-  san: int
-  rst: int
-  per: int
-  sth: int
+# class MortAssistStats(Stats):
+#   level: int
+#   currentxp: int
+#   requiredxp: int
+#   maxhp: int
+#   maxsan: int
+#   hp: int
+#   atk: int
+#   dfs: int
+#   san: int
+#   rst: int
+#   per: int
+#   sth: int
+
+
+class Cooldowns(BaseModel):
+  worship: float | None
 
 
 class Player(BaseModel):
@@ -47,4 +51,5 @@ class Player(BaseModel):
   tokens: int
   favor: int
   inventory: dict[str, int] | None = None
+  cooldowns: Cooldowns
   registered_at: datetime

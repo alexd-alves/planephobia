@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import discord
@@ -13,6 +13,10 @@ import utility.embeds as embeds
 from db.models.playerModels import Player, Stats
 from db.routes import addPlayer, getPlayerByDiscordId
 
+# region Settings
+cooldownCmds = ['worship']
+cooldowns = {'worship': 5}
+
 worship_dance_outcomes = {
   'You fail miserably, do you even know where left and right are? You have upset GhostKai.\nYou get -5 Favour.': -5,
   'You look ridiculous, but at least you managed to stay on your feet. However, GhostKai has standards.\n You get -1 Favour.': -1,
@@ -20,6 +24,9 @@ worship_dance_outcomes = {
   'Your dance is adequate, GhostKai is pleased.\nYou get +3 Favour!': 3,
   'The light of our Lord GhostKai shines upon you! Your dance has greatly pleased Him.\nYou get +5 Favour!': 5,
 }
+
+worship_dance_weights = [5, 10, 40, 35, 10]
+# endregion
 
 
 class PlayerCog(commands.Cog):
@@ -167,7 +174,7 @@ class PlayerCog(commands.Cog):
     # Player Not Found
     if not playerObject:
       return await interaction.response.send_message(
-        embed=NotRegisteredEmbed()
+        embed=embeds.NotRegisteredEmbed()
       )
 
     # Get discord user to be able to display name and avatar
@@ -182,6 +189,76 @@ class PlayerCog(commands.Cog):
         user=discordUser,
       )
     )
+
+  # Cooldowns
+  @app_commands.command(
+    name='cooldowns', description='Display full player stats.'
+  )
+  async def cooldowns(self, interaction: discord.Interaction) -> None:
+    req = self.bot.app
+
+    # Initialize PlayerObject
+    playerObject = None
+
+    # Query database for player
+    try:
+      playerObject = await getPlayerByDiscordId(
+        req, discord_id=interaction.user.id
+      )
+      if playerObject is ValidationError:
+        return await interaction.response.send_message(
+          embed=embeds.ValidationErrorEmbed(
+            extras=' * **`player.py/stats(default user) - getPlayerByDiscordId()`:** `playerObject` is of Type `ValidationError`.',
+            display=True,
+          )
+        )
+    except Exception as e:
+      return await interaction.response.send_message(
+        embed=embeds.ExceptionEmbed(extras=e)
+      )
+
+    # Player Not Found
+    if not playerObject:
+      return await interaction.response.send_message(
+        embed=embeds.NotRegisteredEmbed()
+      )
+
+    # Get cooldowns
+    playerCooldowns = playerObject.cooldowns
+    # Filter out special methods and create dict
+    remainingDeltas: dict[str, str] = {}
+    # Get all time diffs and update to None if exceeded
+    for attr in cooldownCmds:
+      timestamp = getattr(playerCooldowns, attr)
+      if timestamp:
+        timeSince = datetime.now(timezone.utc).timestamp() - timestamp
+        timeRemaining = (cooldowns.get(attr) * 60) - timeSince
+        if timeRemaining <= 0:
+          setattr(playerCooldowns, attr, None)
+          remainingDeltas[attr] = 'Ready'
+        else:
+          minutes, seconds = divmod(timeRemaining, 60)
+          hours, minutes = divmod(minutes, 60)
+          remainingDeltas[attr] = '%d:%02d:%02d' % (
+            hours,
+            minutes,
+            seconds,
+          )
+      else:
+        remainingDeltas[attr] = 'Ready'
+
+    # Update player in DB to remove nulled cooldowns
+    playerObject.cooldowns = playerCooldowns
+    try:
+      await player.batch_update_cooldowns(req, playerObject)
+    except Exception as e:
+      return await interaction.response.send_message(
+        embed=embeds.ExceptionEmbed(extras=e)
+      )
+
+    # 35 - 40 is minus = time now - time plus cooldown is negative therefore cooldown stays
+    # if datetime.now().timestamp() - (timestamp + detatime(minutes='cooldown')) >= 0: remove timestamp
+    return await interaction.response.send_message(remainingDeltas)
 
   # Worship
   @app_commands.command(
@@ -216,9 +293,34 @@ class PlayerCog(commands.Cog):
         embed=embeds.ExceptionEmbed(extras=e)
       )
 
+    # Player Not Found
+    if not playerObject:
+      return await interaction.response.send_message(
+        embed=embeds.NotRegisteredEmbed()
+      )
+
+    # Check cooldown
+    timestamp = getattr(playerObject.cooldowns, 'worship')
+    if timestamp:
+      timeSince = datetime.now(timezone.utc).timestamp() - timestamp
+      timeRemaining = (cooldowns.get('worship') * 60) - timeSince
+      if timeRemaining > 0:
+        minutes, seconds = divmod(timeRemaining, 60)
+        hours, minutes = divmod(minutes, 60)
+        return await interaction.response.send_message(
+          f'You have {
+            "%d:%02d:%02d"
+            % (
+              hours,
+              minutes,
+              seconds,
+            )
+          } of cooldown remaining'
+        )
+
     if type.value == 'dance':
       dance_result = random.choices(
-        list(worship_dance_outcomes.keys())
+        list(worship_dance_outcomes.keys()), worship_dance_weights
       )
       dance_result = dance_result[0]
 
@@ -238,19 +340,21 @@ class PlayerCog(commands.Cog):
           player=playerObject,
           amount=xp_result,
         )
+        await player.start_cooldown(req, playerObject, 'worship')
       except Exception as e:
         return await interaction.response.send_message(
           embed=embeds.ExceptionEmbed(extras=e)
         )
 
       await interaction.response.send_message(
-        'You try to perform the Kitty Dance...'
+        f'**{interaction.user.display_name}** tries to perform the ***Kitty Dance***...'
       )
+      # Get original response to edit
       response = await interaction.original_response()
       if levelled_up:
         return await interaction.followup.edit_message(
           message_id=response.id,
-          content=f'{response.content}\n{dance_result}\nYou also gain {xp_result} XP.\nYou have levelled up!',
+          content=f'{response.content}\n{dance_result}\nYou also gain {xp_result} XP.\nYou have levelled up {levelled_up} times!',
         )
       return await interaction.followup.edit_message(
         message_id=response.id,
