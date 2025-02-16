@@ -81,6 +81,8 @@ async def update_xp(req: Request, player: Player, amount: int) -> int:
 
 # endregion
 
+# region Favor/Tokens
+
 
 async def update_favor(
   req: Request, player: Player, amount: int
@@ -90,3 +92,11 @@ async def update_favor(
     await updatePlayer(req, id=player.id, player=player)
   except Exception as e:
     return e
+
+
+# endregion
+
+
+# region Commands
+
+# endregion

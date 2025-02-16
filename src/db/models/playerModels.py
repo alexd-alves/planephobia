@@ -41,6 +41,7 @@ class Stats(BaseModel):
 
 class Cooldowns(BaseModel):
   worship: float | None
+  duel: float | None
 
 
 class Player(BaseModel):
