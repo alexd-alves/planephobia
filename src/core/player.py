@@ -63,6 +63,8 @@ def level_up(player: Player) -> list[Player, int]:
 
 async def update_xp(req: Request, player: Player, amount: int) -> int:
   player.stats.currentxp += amount
+  if player.stats.currentxp < 0:
+    player.stats.currentxp = 0
   if player.stats.currentxp >= player.stats.requiredxp:
     leveldata = level_up(player)
     try:

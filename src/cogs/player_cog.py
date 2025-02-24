@@ -368,7 +368,12 @@ class PlayerCog(commands.Cog):
     name='duel', description='Fight other players 1v1.'
   )
   @app_commands.choices(
-    type=[app_commands.Choice(name='dice', value='dice')]
+    type=[
+      app_commands.Choice(name='dice', value='dice'),
+      app_commands.Choice(
+        name='dice hardcore', value='dice hardcore'
+      ),
+    ]
   )
   async def duel(
     self,
@@ -514,9 +519,18 @@ class PlayerCog(commands.Cog):
             followup = await followup.edit(
               content=f'{followup.content}\n{interaction.user.name} gains {init_xp} XP. You level up {init_levelled_up} times!'
             )
+          else:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{interaction.user.name} gains {init_xp} XP.'
+            )
+
           if target_levelled_up:
             followup = await followup.edit(
               content=f'{followup.content}\n{interaction.name} gains {init_xp} XP. You level up {init_levelled_up} times!'
+            )
+          else:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{interaction.name} gains {init_xp} XP.'
             )
         # Initiatior wins
         elif initPlayerRoll > targetPlayerRoll:
@@ -544,6 +558,10 @@ class PlayerCog(commands.Cog):
             followup = await followup.edit(
               content=f'{followup.content}\n{interaction.user.name} gains {init_xp} XP. {interaction.user.name} levels up {init_levelled_up} times!'
             )
+          else:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{interaction.user.name} gains {init_xp} XP.'
+            )
         # Target wins
         elif targetPlayerRoll > initPlayerRoll:
           # Calculate XP using gaussian distribution
@@ -570,6 +588,127 @@ class PlayerCog(commands.Cog):
             followup = await followup.edit(
               content=f'{followup.content}\n{target.name} gains {target_xp} XP. {target.name} levels up {target_levelled_up} times!'
             )
+          else:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{target.name} gains {target_xp} XP.'
+            )
+
+    elif type.value == 'dice hardcore':
+      view = buttons.DuelConsentButton(
+        timeout=10, init=interaction.user.id, target=target.id
+      )
+      await interaction.response.send_message(
+        f"{interaction.user.name} has challenged {target.name} to a hardcore dice duel!\nDo you accept **{interaction.user.name}**'s challenge, {target.mention}?",
+        view=view,
+      )
+      view.response = await interaction.original_response()
+      await view.wait()
+      if view.value:
+        # Update Cooldowns
+        try:
+          await player.start_cooldown(req, initPlayer, 'duel')
+          await player.start_cooldown(req, targetPlayer, 'duel')
+        except Exception as e:
+          return await interaction.response.send_message(
+            embed=embeds.ExceptionEmbed(extras=e)
+          )
+
+        # Actual dice rolling
+        initPlayerRoll = random.randint(1, 20)
+        targetPlayerRoll = random.randint(1, 20)
+
+        # If tie
+        if initPlayerRoll == targetPlayerRoll:
+          # No XP win or loss
+          followup = await interaction.followup.send(
+            f"{interaction.user.name}: {initPlayerRoll}\n{target.name}: {targetPlayerRoll}\nIt's a tie! No one gets anything."
+          )
+        # Initiatior wins
+        elif initPlayerRoll > targetPlayerRoll:
+          # Calculate XP win for initiator using gaussian distribution
+          init_mu = initPlayer.stats.level * 50
+          init_sigma = initPlayer.stats.level * 5
+          init_xp = int(random.gauss(init_mu, init_sigma))
+
+          # Calculate XP loss for target
+          target_mu = initPlayer.stats.level * 50
+          target_sigma = initPlayer.stats.level * 5
+          target_xp = int(random.gauss(init_mu, init_sigma)) * -1
+
+          # Update XP
+          try:
+            init_levelled_up = await player.update_xp(
+              req=req,
+              player=initPlayer,
+              amount=init_xp,
+            )
+            target_levelled_up = await player.update_xp(
+              req=req,
+              player=targetPlayer,
+              amount=target_xp,
+            )
+          except Exception as e:
+            return await interaction.response.send_message(
+              embed=embeds.ExceptionEmbed(extras=e)
+            )
+
+          followup = await interaction.followup.send(
+            f'{interaction.user.name}: {initPlayerRoll}\n{target.name}: {targetPlayerRoll}\n**{interaction.user.name}** wins!'
+          )
+          if init_levelled_up:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{interaction.user.name} gains {init_xp} XP. {interaction.user.name} levels up {init_levelled_up} times!'
+            )
+          else:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{interaction.user.name} gains {init_xp} XP.'
+            )
+          followup = await followup.edit(
+            content=f'{followup.content}\n{target.name} loses {target_xp * -1} XP.'
+          )
+        # Target wins
+        elif targetPlayerRoll > initPlayerRoll:
+          # Calculate target XP win using gaussian distribution
+          target_mu = targetPlayer.stats.level * 50
+          target_sigma = targetPlayer.stats.level * 5
+          target_xp = int(random.gauss(target_mu, target_sigma))
+
+          # Calculate initiator's loss
+          init_mu = initPlayer.stats.level * 50
+          init_sigma = initPlayer.stats.level * 5
+          init_xp = int(random.gauss(target_mu, target_sigma)) * -1
+
+          # Update XPs
+          try:
+            target_levelled_up = await player.update_xp(
+              req=req,
+              player=targetPlayer,
+              amount=target_xp,
+            )
+            init_levelled_up = await player.update_xp(
+              req=req,
+              player=initPlayer,
+              amount=init_xp,
+            )
+          except Exception as e:
+            return await interaction.response.send_message(
+              embed=embeds.ExceptionEmbed(extras=e)
+            )
+
+          followup = await interaction.followup.send(
+            f'{interaction.user.name}: {initPlayerRoll}\n{target.name}: {targetPlayerRoll}\n**{target.name}** wins!'
+          )
+          if target_levelled_up:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{target.name} gains {target_xp} XP. {target.name} levels up {target_levelled_up} times!'
+            )
+          else:
+            followup = await followup.edit(
+              content=f'{followup.content}\n{target.name} gains {target_xp} XP.'
+            )
+          followup = await followup.edit(
+            content=f'{followup.content}\n{interaction.user.name} loses {init_xp * -1} XP.'
+          )
 
 
 async def setup(bot: commands.Bot):
