@@ -5,8 +5,6 @@ from pydantic import BaseModel, Field
 
 import core.titles as titles
 
-# Default stats
-
 
 class Stats(BaseModel):
   level: int
@@ -23,31 +21,17 @@ class Stats(BaseModel):
   sth: int
 
 
-# Class-specific stats
-# class MortAssistStats(Stats):
-#   level: int
-#   currentxp: int
-#   requiredxp: int
-#   maxhp: int
-#   maxsan: int
-#   hp: int
-#   atk: int
-#   dfs: int
-#   san: int
-#   rst: int
-#   per: int
-#   sth: int
-
-
 class Cooldowns(BaseModel):
   worship: float | None
   duel: float | None
+  hunt: float | None
 
 
 class Player(BaseModel):
   id: Optional[str] = Field(default_factory=str, alias='_id')
   discord_id: int
   title: str = Field(default=titles.PlayerTitles._1)
+  playerClass: str
   stats: Stats
   tokens: int
   favor: int

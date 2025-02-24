@@ -6,6 +6,7 @@ from discord.ext import commands
 
 import utility.embeds as embeds
 from core.items import all_armor, all_consumables
+from db.routes import deletePlayer
 
 
 class CommandsCog(commands.Cog):
@@ -166,6 +167,33 @@ class CommandsCog(commands.Cog):
     await interaction.response.send_message(
       f'Synced {len(synced)} commands globally.'
     )
+
+  # Delete Player Record
+  @app_commands.command(
+    name='yeet', description='Delete Player from DB.'
+  )
+  async def yeet(
+    self, interaction: discord.Interaction, user: discord.Member
+  ) -> None:
+    req = self.bot.app
+    # player = await getPlayerByDiscordId(req, discord_id=user.id)
+    try:
+      await deletePlayer(req, discord_id=user.id)
+      await interaction.response.send_message(
+        f'{user.id} has been deleted.'
+      )
+    except Exception as e:
+      return await interaction.response.send_message(
+        embed=embeds.ExceptionEmbed(extras=e)
+      )
+    # else:
+    #   await interaction.response.send_message(
+    #     embeds=embeds.WarningEmbed(
+    #       title='Player does not exist',
+    #       description='commands_cog.yeet',
+    #       display=True,
+    #     )
+    #   )
 
 
 async def setup(bot: commands.Bot):

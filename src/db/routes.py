@@ -42,16 +42,15 @@ async def addPlayer(request: Request, player: Player = Body(...)):
 
 
 @router.delete('/{id}')
-async def deletePlayer(request: Request, id):
-  _id = ObjectId(id)
+async def deletePlayer(request: Request, discord_id: int):
   db = request.players
-  response = db.delete_one({'_id': _id})
+  response = db.delete_one({'discord_id': discord_id})
   return {'deleted_count': response.deleted_count}
 
 
 @router.put('/{id}')
 async def updatePlayer(
-  request: Request, id, player: Player = Body(...)
+  request: Request, id: int, player: Player = Body(...)
 ):
   try:
     _id = ObjectId(id)

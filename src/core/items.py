@@ -1,6 +1,6 @@
 class Item:
   # Base class for all items
-  def __init__(self, name, description, value):
+  def __init__(self, name: str, description: str, value: int):
     self.name = name
     self.description = description
     self.value = value
@@ -8,7 +8,14 @@ class Item:
 
 # Consumables can be consumed and change a stat
 class Consumable(Item):
-  def __init__(self, name, description, value, stat, amount):
+  def __init__(
+    self,
+    name: str,
+    description: str,
+    value: int,
+    stat: str,
+    amount: int,
+  ):
     super().__init__(name, description, value)
     self.stat = stat
     self.amount = amount
@@ -39,7 +46,15 @@ class Rumbottle(Consumable):
 
 # Armor can be worn to increase DEF and can grant other bonuses
 class Armor(Item):
-  def __init__(self, name, description, value, type, amount, bonuses):
+  def __init__(
+    self,
+    name: str,
+    description: str,
+    value: int,
+    type: str,
+    amount: int,
+    bonuses: dict,
+  ):
     super().__init__(name, description, value)
     self.type = type
     self.amount = amount

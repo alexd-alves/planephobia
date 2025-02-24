@@ -7,16 +7,18 @@ from discord import app_commands
 from discord.ext import commands
 from pydantic import ValidationError
 
+import core.enemies as enemies
 import core.player as player
 import core.titles as titles
 import utility.buttons as buttons
 import utility.embeds as embeds
-from db.models.playerModels import Player, Stats
-from db.routes import addPlayer, getPlayerByDiscordId
+import utility.playerClasses as playerClasses
+from db.models.playerModels import Player
+from db.routes import addPlayer, getPlayerByDiscordId, updatePlayer
 
 # region Settings
-cooldownCmds = ['worship', 'duel']
-cooldowns = {'worship': 5, 'duel': 10}
+cooldownCmds = ['worship', 'duel', 'hunt']
+cooldowns = {'worship': 5, 'duel': 10, 'hunt': 1}
 
 worship_dance_outcomes = {
   'You fail miserably, do you even know where left and right are? You have upset GhostKai.\nYou get -5 Favour.': -5,
@@ -47,32 +49,44 @@ class PlayerCog(commands.Cog):
         embed=embeds.ExistingPlayerEmbed()
       )
     else:
-      newStats = Stats(
-        level=1,
-        currentxp=0,
-        requiredxp=100,
-        maxhp=10,
-        maxsan=5,
-        hp=10,
-        atk=1,
-        dfs=1,
-        san=5,
-        rst=1,
-        per=1,
-        sth=1,
-      )
-      newPlayer = Player(
-        discord_id=interaction.user.id,
-        title=titles.PlayerTitles._0,
-        stats=newStats,
-        tokens=100,
-        favor=100,
-        registered_at=datetime.now(),
-      )
-      addedPlayer = await addPlayer(req, player=newPlayer)
+      view = buttons.PlayerClassButtons()
       await interaction.response.send_message(
-        f'Added player: {addedPlayer}'
+        'Choose a class by pressing the buttons.', view=view
       )
+      view.response = await interaction.original_response()
+      await view.wait()
+
+      if view.value == 'a':
+        newPlayer = Player(
+          discord_id=interaction.user.id,
+          title=titles.PlayerTitles._0,
+          playerClass='Test Class A',
+          stats=playerClasses.defaultStatsA,
+          tokens=100,
+          favor=100,
+          cooldowns=playerClasses.defaultCooldowns,
+          registered_at=datetime.now(),
+        )
+        addedPlayer = await addPlayer(req, player=newPlayer)
+        await interaction.followup.send(
+          f'Added player: {addedPlayer}'
+        )
+
+      elif view.value == 'b':
+        newPlayer = Player(
+          discord_id=interaction.user.id,
+          title=titles.PlayerTitles._0,
+          playerClass='Test Class B',
+          stats=playerClasses.defaultStatsB,
+          tokens=100,
+          favor=100,
+          cooldowns=playerClasses.defaultCooldowns,
+          registered_at=datetime.now(),
+        )
+        addedPlayer = await addPlayer(req, player=newPlayer)
+        await interaction.followup.send(
+          f'Added player: {addedPlayer}'
+        )
 
   # Profile
   @app_commands.command(
@@ -460,7 +474,7 @@ class PlayerCog(commands.Cog):
 
     if type.value == 'dice':
       view = buttons.DuelConsentButton(
-        timeout=10, init=interaction.user.id, target=target.id
+        timeout=180, init=interaction.user.id, target=target.id
       )
       await interaction.response.send_message(
         f"{interaction.user.name} has challenged {target.name} to a dice duel!\nDo you accept **{interaction.user.name}**'s challenge, {target.mention}?",
@@ -709,6 +723,104 @@ class PlayerCog(commands.Cog):
           followup = await followup.edit(
             content=f'{followup.content}\n{interaction.user.name} loses {init_xp * -1} XP.'
           )
+
+  # Hunt?
+  @app_commands.command(name='hunt', description='Hunt small mobs.')
+  async def hunt(self, interaction: discord.Interaction):
+    req = self.bot.app
+
+    # Get Player from DB
+    try:
+      playerObject = await getPlayerByDiscordId(
+        req, discord_id=interaction.user.id
+      )
+      if playerObject is ValidationError:
+        return await interaction.response.send_message(
+          embed=embeds.ValidationErrorEmbed(
+            extras=' * **`player_cog.py/hunt - getPlayerByDiscordId()`:** `playerObject` is of Type `ValidationError`.',
+            display=True,
+          )
+        )
+    except Exception as e:
+      return await interaction.response.send_message(
+        embed=embeds.ExceptionEmbed(extras=e)
+      )
+
+    # Check Cooldown
+    timestamp = getattr(playerObject.cooldowns, 'hunt')
+    if timestamp:
+      timeSince = datetime.now(timezone.utc).timestamp() - timestamp
+      timeRemaining = (cooldowns.get('hunt') * 60) - timeSince
+      if timeRemaining > 0:
+        minutes, seconds = divmod(timeRemaining, 60)
+        hours, minutes = divmod(minutes, 60)
+        return await interaction.response.send_message(
+          'You have %d:%02d:%02d of cooldown remaining'
+          % (
+            hours,
+            minutes,
+            seconds,
+          )
+        )
+
+    # Update Cooldown
+    try:
+      await player.start_cooldown(req, playerObject, 'hunt')
+    except Exception as e:
+      return await interaction.response.send_message(
+        embed=embeds.ExceptionEmbed(extras=e)
+      )
+
+    enemy = enemies.Redvelvet()
+    initialhp = playerObject.stats.hp
+
+    # Player takes turn first
+    while playerObject.stats.hp > 0 and enemy.hp > 0:
+      # Player's turn
+      enemy.hp = enemy.hp - playerObject.stats.atk
+      print(f'New enemy HP: {enemy.hp}')
+      # Enemy's turn
+      if enemy.hp > 0:
+        playerObject.stats.hp = int(
+          playerObject.stats.hp
+          - (enemy.atk * (80 / 100 + playerObject.stats.dfs))
+        )
+        print(f'new hp: {playerObject.stats.hp}')
+
+    if playerObject.stats.hp > 0:
+      # Calculate XP using gaussian distribution
+      xp_mu = playerObject.stats.level * 35
+      xp_sigma = playerObject.stats.level * 5
+      acq_xp = int(random.gauss(xp_mu, xp_sigma))
+
+      # Update XP and HP
+      try:
+        # HP First
+        await updatePlayer(req, playerObject.id, playerObject)
+        print('Updated HP')
+
+        # Then XP
+        levelled_up = await player.update_xp(
+          req=req, player=playerObject, amount=acq_xp
+        )
+        print('Updated XP')
+      except Exception as e:
+        return await interaction.response.send_message(
+          embed=embeds.ExceptionEmbed(extras=e)
+        )
+
+      if levelled_up:
+        return await interaction.response.send_message(
+          f'**{interaction.user.name}** found and killed a {enemy.name.upper()}.\nGained {acq_xp} XP and lost {initialhp - playerObject.stats.hp} HP. Remaining HP is {playerObject.stats.hp}/{playerObject.stats.maxhp}.\nYou level up {levelled_up} times!'
+        )
+      else:
+        return await interaction.response.send_message(
+          f'**{interaction.user.name}** found and killed a {enemy.name.upper()}.\nGained {acq_xp} XP and lost {initialhp - playerObject.stats.hp} HP. Remaining HP is {playerObject.stats.hp}/{playerObject.stats.maxhp}.'
+        )
+    else:
+      return await interaction.response.send_message(
+        f'**{interaction.user.name}** found a {enemy.name.upper()} and died fighting it.'
+      )
 
 
 async def setup(bot: commands.Bot):

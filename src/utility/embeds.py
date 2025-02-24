@@ -2,6 +2,8 @@ from enum import IntEnum
 
 import discord
 
+from db.models.playerModels import Player, Stats
+
 
 class EmbedColors(IntEnum):
   ERROR = 0x992D22
@@ -11,7 +13,7 @@ class EmbedColors(IntEnum):
 
 # region Exceptions
 class ExceptionEmbed(discord.Embed):
-  def __init__(self, extras='', display=True):
+  def __init__(self, extras: str = '', display: bool = True) -> None:
     if not display:
       super().__init__(
         color=EmbedColors.ERROR,
@@ -29,7 +31,13 @@ class ExceptionEmbed(discord.Embed):
 
 # region Warnings
 class WarningEmbed(discord.Embed):
-  def __init__(self, title, description, extras='', display=False):
+  def __init__(
+    self,
+    title: str,
+    description: str,
+    extras: str = '',
+    display: bool = False,
+  ) -> None:
     if not display:
       super().__init__(
         color=EmbedColors.WARNING,
@@ -46,7 +54,7 @@ class WarningEmbed(discord.Embed):
 
 
 class NotRegisteredEmbed(WarningEmbed):
-  def __init__(self):
+  def __init__(self) -> None:
     super().__init__(
       title='Not Registered',
       description='Register using `/start` to start playing!.',
@@ -54,7 +62,7 @@ class NotRegisteredEmbed(WarningEmbed):
 
 
 class ExistingPlayerEmbed(WarningEmbed):
-  def __init__(self):
+  def __init__(self) -> None:
     super().__init__(
       title='Existing Player',
       description='You have already registered! Use `/profile` to see your details.',
@@ -62,7 +70,7 @@ class ExistingPlayerEmbed(WarningEmbed):
 
 
 class ValidationErrorEmbed(WarningEmbed):
-  def __init__(self, extras, display):
+  def __init__(self, extras: str, display: bool) -> None:
     super().__init__(
       title='Validation Error',
       description='Encountered a **pydantic `Validation Error`**. Check the data models match the existing DB entries.',
@@ -72,7 +80,7 @@ class ValidationErrorEmbed(WarningEmbed):
 
 
 class TypeErrorEmbed(WarningEmbed):
-  def __init__(self, extras, display):
+  def __init__(self, extras: str, display: bool):
     super().__init__(
       title='Type Error',
       description='Response does not match expected Type.',
@@ -85,12 +93,14 @@ class TypeErrorEmbed(WarningEmbed):
 
 
 # region Basic Commands
-# # Help
+# Help
 help_dev = [
   '* `/sync`: Re-sync all commands globally.',
   '* `/reload`: Reload an extension after changes. Use to avoid restarting application after command changes.',
 ]
 help_test = [
+  '* `/yeet`: Delete a Player on DB to force restart.',
+  '  - `user`: Player to Yeet.',
   '* `/items`: Shows all available items.',
   '  - `type`: Optional',
 ]
@@ -101,6 +111,11 @@ help_basic = [
   '* `/worship`: Worship our Lord GhostKai to obtain his Favour.',
   '  - `type`: You can perform the following types of activities to worship:',
   '    * `dance`: Perform the Kitty dance.',
+  '* `/duel`: Challenge another player to a duel.',
+  '  - `type`: The following types of duels are available:',
+  '    * `dice`: Player who rolls the higher number on a D20 wins.',
+  '    * `dice hardcore`: Same as dice but no XP is awarded on ties and loser loses XP too.',
+  '  - `target`: Another player.',
 ]
 
 
@@ -136,11 +151,13 @@ class HelpEmbed(discord.Embed):
 # region Player Commands
 # Player Profile
 class ProfileEmbed(discord.Embed):
-  def __init__(self, player, stats, user, date):
+  def __init__(
+    self, player: Player, stats: Stats, user: discord.User, date: str
+  ):
     super().__init__(
       color=EmbedColors.DEFAULT,
       title=player.title,
-      description='Class here?',
+      description=player.playerClass,
     )
     self.set_author(
       name=f'{user.name} - profile', icon_url=user.display_avatar.url
@@ -166,7 +183,7 @@ class ProfileEmbed(discord.Embed):
 
 # Stats Embed
 class StatsEmbed(discord.Embed):
-  def __init__(self, stats, user):
+  def __init__(self, stats: Stats, user: discord.User):
     super().__init__(
       color=EmbedColors.DEFAULT,
       title='ALL STATS',

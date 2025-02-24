@@ -98,7 +98,6 @@ async def update_favor(
 
 # endregion
 
-
 # region Commands
 
 # endregion
