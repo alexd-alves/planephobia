@@ -316,23 +316,11 @@ class PlayerCog(commands.Cog):
       )
 
     # Check cooldown
-    timestamp = getattr(playerObject.cooldowns, 'worship')
-    if timestamp:
-      timeSince = datetime.now(timezone.utc).timestamp() - timestamp
-      timeRemaining = (cooldowns.get('worship') * 60) - timeSince
-      if timeRemaining > 0:
-        minutes, seconds = divmod(timeRemaining, 60)
-        hours, minutes = divmod(minutes, 60)
-        return await interaction.response.send_message(
-          f'You have {
-            "%d:%02d:%02d"
-            % (
-              hours,
-              minutes,
-              seconds,
-            )
-          } of cooldown remaining'
-        )
+    cooldown = playerObject.cooldowns.cooldown_by_name(
+      cooldowns, 'worship'
+    )
+    if cooldown:
+      return await interaction.response.send_message(cooldown)
 
     if type.value == 'dance':
       dance_result = random.choices(
@@ -432,44 +420,26 @@ class PlayerCog(commands.Cog):
       return await interaction.response.send_message(
         embed=embeds.NotRegisteredEmbed()
       )
+
     # Target Not Found
     if not targetPlayer:
       return await interaction.response.send_message(
         "Target Player doesn't exist."
       )
-    # Cooldown for initiator
-    timestamp = getattr(initPlayer.cooldowns, 'duel')
-    if timestamp:
-      timeSince = datetime.now(timezone.utc).timestamp() - timestamp
-      timeRemaining = (cooldowns.get('duel') * 60) - timeSince
-      if timeRemaining > 0:
-        minutes, seconds = divmod(timeRemaining, 60)
-        hours, minutes = divmod(minutes, 60)
-        return await interaction.response.send_message(
-          'You have %d:%02d:%02d of cooldown remaining'
-          % (
-            hours,
-            minutes,
-            seconds,
-          )
-        )
-    # Cooldown for target
-    timestamp = getattr(targetPlayer.cooldowns, 'duel')
-    if timestamp:
-      timeSince = datetime.now(timezone.utc).timestamp() - timestamp
-      timeRemaining = (cooldowns.get('duel') * 60) - timeSince
-      if timeRemaining > 0:
-        minutes, seconds = divmod(timeRemaining, 60)
-        hours, minutes = divmod(minutes, 60)
-        return await interaction.response.send_message(
-          f'{target.name} has '
-          + '%d:%02d:%02d of cooldown remaining'
-          % (
-            hours,
-            minutes,
-            seconds,
-          )
-        )
+
+    # Check cooldown for initiator
+    cooldown = initPlayer.cooldowns.cooldown_by_name(
+      cooldowns, 'duel'
+    )
+    if cooldown:
+      return await interaction.response.send_message(cooldown)
+
+    # Check cooldown for target
+    cooldown = targetPlayer.cooldowns.cooldown_by_name_for_target(
+      target.name, cooldowns, 'duel'
+    )
+    if cooldown:
+      return await interaction.response.send_message(cooldown)
     # endregion
 
     if type.value == 'dice':
