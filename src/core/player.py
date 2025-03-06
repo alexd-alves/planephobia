@@ -12,7 +12,9 @@ async def start_cooldown(
   req: Request, player: Player, cmd: str
 ) -> None:
   setattr(
-    player.cooldowns, cmd, datetime.now(tz=timezone.utc).timestamp()
+    player.cooldowns,
+    cmd,
+    datetime.now(tz=timezone.utc).timestamp(),
   )
   try:
     await updatePlayer(req, id=player.id, player=player)
@@ -44,31 +46,34 @@ async def batch_update_cooldowns(
 # region XP/Levels
 
 
-# Formula for required xp for each level
-def calc_req_xp(level: int) -> int:
-  return (level**2) * 50
-
-
 def level_up(player: Player) -> list[Player, int]:
   newplayer = player
   count = 0
   # Loop until xp has been used
-  while newplayer.stats.currentxp >= newplayer.stats.requiredxp:
+  while (
+    newplayer.stats.currentxp >= newplayer.stats.requiredxp
+  ):
     newplayer.stats.currentxp -= newplayer.stats.requiredxp
     newplayer.stats.level += 1
-    newplayer.stats.requiredxp = calc_req_xp(newplayer.stats.level)
+    newplayer.stats.requiredxp = (
+      newplayer.calculate_next_lv_xp()
+    )
     count += 1
   return [newplayer, count]
 
 
-async def update_xp(req: Request, player: Player, amount: int) -> int:
+async def update_xp(
+  req: Request, player: Player, amount: int
+) -> int:
   player.stats.currentxp += amount
   if player.stats.currentxp < 0:
     player.stats.currentxp = 0
   if player.stats.currentxp >= player.stats.requiredxp:
     leveldata = level_up(player)
     try:
-      await updatePlayer(req, id=leveldata[0].id, player=leveldata[0])
+      await updatePlayer(
+        req, id=leveldata[0].id, player=leveldata[0]
+      )
       return leveldata[1]
     except Exception as e:
       return e

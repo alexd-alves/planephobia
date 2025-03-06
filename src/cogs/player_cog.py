@@ -311,7 +311,7 @@ class PlayerCog(commands.Cog):
       print(error_data)
     return await interaction.response.send_message(
       embed=embeds.ExceptionEmbed(
-        'Error in "stats" (player_cog.py)', desc
+        'Error in "stats" (_cog.py)', desc
       )
     )
 

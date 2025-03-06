@@ -17,7 +17,9 @@ async def getPlayers(request: Request) -> list[Player]:
 
 
 @router.get('/')
-async def getPlayerByDiscordId(request: Request, discord_id):
+async def getPlayerByDiscordId(
+  request: Request, discord_id
+):
   db = request.players
   response = db.find_one({'discord_id': discord_id})
   if response:
@@ -29,13 +31,15 @@ async def getPlayerByDiscordId(request: Request, discord_id):
       return response
     except ValidationError as e:
       print(e)
-      return ValidationError
+      return e
   else:
     return None
 
 
 @router.post('/')
-async def addPlayer(request: Request, player: Player = Body(...)):
+async def addPlayer(
+  request: Request, player: Player = Body(...)
+):
   db = request.players
   response = db.insert_one(player.model_dump())
   return {'id': str(response.inserted_id)}

@@ -5,27 +5,33 @@ from discord import Embed, User
 from db.models.playerModels import Player, Stats
 
 
+class StrListEnum(list[str], Enum):
+  pass
+
+
 class EmbedColors(IntEnum):
   ERROR = 0x992D22
   DEFAULT = 0x2C2F33
 
 
-class EmbedText(Enum):
+class EmbedText(StrListEnum):
   HELP_DEV = [
     '* `/sync`: Re-sync all commands globally.',
     '* `/reload`: Reload an extension after changes. Use to avoid restarting application after command changes.',
   ]
   HELP_TEST = [
-    '* `/yeet`: Delete a Player on DB to force restart.',
+    '* `/yeet`: Delete a Player from DB to force restart.',
     '  - `user`: Player to Yeet.',
-    '* `/items`: Shows all available items.',
-    '  - `type`: Optional',
+    '* `/items`: Shows all available Items.',
+    '  - `type`: (Optional) Display only a specific category of Items.',
   ]
   HELP_BASIC = [
-    '* `/profile`: Display Player profile.',
-    '  - `user` (Optional).',
+    '* `/start`: Register with the bot to play.',
+    '* `/profile`: Display Player Profile with abridged Stats.',
+    '  - `user` (Optional) See another Profile.',
     '* `/stats`: Display full Player stats.',
-    '* `/worship`: Worship our Lord GhostKai to obtain his Favour.',
+    '* `/cooldowns`: Display all Command Cooldowns.',
+    '* `/worship`: Worship our Lord GhostKai to win his Favor.',
     '  - `type`: You can perform the following types of activities to worship:',
     '    * `dance`: Perform the Kitty dance.',
     '* `/duel`: Challenge another player to a duel.',
@@ -33,6 +39,7 @@ class EmbedText(Enum):
     '    * `dice`: Player who rolls the higher number on a D20 wins.',
     '    * `dice hardcore`: Same as dice but no XP is awarded on ties and loser loses XP too.',
     '  - `target`: Another player.',
+    '* `/hunt`: Fight a Mob.',
   ]
 
 

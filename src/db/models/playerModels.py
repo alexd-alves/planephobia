@@ -31,7 +31,7 @@ class Cooldowns(BaseModel):
     self,
     cooldowns: dict,
     command: str,
-    target: Optional[str] = None,
+    target_name: Optional[str] = None,
   ) -> str | None:
     timestamp = getattr(self, command)
     if timestamp:
@@ -44,7 +44,7 @@ class Cooldowns(BaseModel):
       if timeRemaining > 0:
         minutes, seconds = divmod(timeRemaining, 60)
         hours, minutes = divmod(minutes, 60)
-        if target:
+        if target_name:
           return f'Try again in {
             "%d:%02d:%02d"
             % (
@@ -53,8 +53,8 @@ class Cooldowns(BaseModel):
               seconds,
             )
           }'
-        elif target is None:
-          return f'**{target}** has {
+        elif target_name is None:
+          return f'**{target_name}** has {
             "%d:%02d:%02d"
             % (
               hours,
@@ -84,3 +84,6 @@ class Player(BaseModel):
     xp_mu = self.stats.level * m_multiplier
     xp_sigma = self.stats.level * s_multiplier
     return int(random.gauss(xp_mu, xp_sigma))
+
+  def calculate_next_lv_xp(self) -> int:
+    return (self.stats.level**2) * 50

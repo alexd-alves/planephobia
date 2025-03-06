@@ -16,12 +16,14 @@ class CommandsCog(commands.Cog):
   # A list of item types for testing
   @app_commands.command(
     name='items',
-    description='Lists available items - Test command',
+    description='Test Command: List of all Items.',
   )
   @app_commands.choices(
     type=[
-      app_commands.Choice(name='consumables', value='consumables'),
-      app_commands.Choice(name='armour', value='armour'),
+      app_commands.Choice(
+        name='consumables', value='consumables'
+      ),
+      app_commands.Choice(name='armor', value='armor'),
     ]
   )
   async def items(
@@ -36,8 +38,12 @@ class CommandsCog(commands.Cog):
         item_list.append(
           '**' + item.name + '** - ' + item.description
         )
-        item_list.append('* Value: ' + str(item.value) + ' tokens')
-        item_list.append('* +' + str(item.amount) + ' ' + item.stat)
+        item_list.append(
+          '* Value: ' + str(item.value) + ' tokens'
+        )
+        item_list.append(
+          '* +' + str(item.amount) + ' ' + item.stat
+        )
       item_list = '\n'.join(item_list)
 
       items_embed = discord.Embed(
@@ -49,7 +55,7 @@ class CommandsCog(commands.Cog):
       items_embed.add_field(
         name='Consumables', value=item_list, inline=False
       )
-    elif type.value == 'armour':
+    elif type.value == 'armor':
       item_list = []
 
       for item in all_armor:
@@ -67,7 +73,9 @@ class CommandsCog(commands.Cog):
         )
         item_list.append('* DEF: +' + str(item.amount))
         item_list.append('* Also grants: ' + bonuses)
-        item_list.append('* Value: ' + str(item.value) + ' tokens')
+        item_list.append(
+          '* Value: ' + str(item.value) + ' tokens'
+        )
       item_list = '\n'.join(item_list)
 
       items_embed = discord.Embed(
@@ -109,7 +117,9 @@ class CommandsCog(commands.Cog):
         )
         armor_list.append('* DEF: +' + str(item.amount))
         armor_list.append('* Also grants: ' + bonuses)
-        armor_list.append('* Value: ' + str(item.value) + ' tokens')
+        armor_list.append(
+          '* Value: ' + str(item.value) + ' tokens'
+        )
       armor_list = '\n'.join(armor_list)
 
       items_embed = discord.Embed(
@@ -119,32 +129,41 @@ class CommandsCog(commands.Cog):
       )
 
       items_embed.add_field(
-        name='Consumables', value=consumables_list, inline=True
+        name='Consumables',
+        value=consumables_list,
+        inline=True,
       )
       items_embed.add_field(
-        name='Armour', value=armor_list, inline=True
+        name='Armor', value=armor_list, inline=True
       )
 
-    await interaction.response.send_message(embed=items_embed)
+    await interaction.response.send_message(
+      embed=items_embed
+    )
 
   # Help
   @app_commands.command(
     name='help',
-    description='A list of basic commands.',
+    description='How to play.',
   )
   async def help(self, interaction: discord.Interaction):
-    await interaction.response.send_message(embed=embeds.HelpEmbed())
+    await interaction.response.send_message(
+      embed=embeds.HelpEmbed()
+    )
 
   # Development utilities
   # Extension Reload
   @app_commands.command(
-    name='reload', description='Reload an extension.'
+    name='reload',
+    description='Dev Command: Reload an extension.',
   )
   async def reload(
     self, interaction: discord.Integration, extension: str
   ):
     await self.bot.reload_extension(f'{extension}')
-    await interaction.response.send_message(f'Reloaded {extension}.')
+    await interaction.response.send_message(
+      f'Reloaded {extension}.'
+    )
 
   @reload.autocomplete('extension')
   async def extension_autocomplete(
@@ -154,7 +173,9 @@ class CommandsCog(commands.Cog):
     options: list[app_commands.Choice[str]] = []
     for ext in extensions:
       if ext.startswith(current):
-        options.append(app_commands.Choice(name=ext, value=ext))
+        options.append(
+          app_commands.Choice(name=ext, value=ext)
+        )
     return options[:25]
 
   # Command Sync
@@ -173,7 +194,9 @@ class CommandsCog(commands.Cog):
     name='yeet', description='Delete Player from DB.'
   )
   async def yeet(
-    self, interaction: discord.Interaction, user: discord.Member
+    self,
+    interaction: discord.Interaction,
+    user: discord.Member,
   ) -> None:
     req = self.bot.app
     # player = await getPlayerByDiscordId(req, discord_id=user.id)

@@ -8,6 +8,7 @@ from discord.ext import commands
 from pydantic import ValidationError
 
 from core import enemies, player
+from db.models.playerModels import Cooldowns, Player
 from db.routes import getPlayerByDiscordId, updatePlayer
 from utility import buttons, embeds
 
@@ -30,17 +31,19 @@ class ActionsCog(commands.Cog):
   def __init__(self, bot: commands.Bot) -> None:
     self.req = bot.app
 
+  # !! Keep Cooldowns command here to avoid global consts
+
   # region Cooldowns
   @app_commands.command(
     name='cooldowns',
-    description='All your command cooldowns.',
+    description='All command cooldowns.',
   )
   async def cooldowns(
     self, interaction: discord.Interaction
   ) -> None:
     # Query database for player
     try:
-      playerObject = await getPlayerByDiscordId(
+      playerObject: Player = await getPlayerByDiscordId(
         self.req, discord_id=interaction.user.id
       )
       if playerObject is ValidationError:
@@ -55,7 +58,7 @@ class ActionsCog(commands.Cog):
       )
 
     # Get cooldowns
-    playerCooldowns = playerObject.cooldowns
+    playerCooldowns: Cooldowns = playerObject.cooldowns
     # Filter out special methods and create dict
     remainingDeltas: dict[str, str] = {}
     # Get all time diffs and update to None if exceeded
@@ -160,7 +163,7 @@ class ActionsCog(commands.Cog):
   ):
     # Get player from db
     try:
-      playerObject = await getPlayerByDiscordId(
+      playerObject: Player = await getPlayerByDiscordId(
         self.req, discord_id=interaction.user.id
       )
       if playerObject is ValidationError:
@@ -175,8 +178,10 @@ class ActionsCog(commands.Cog):
       )
 
     # Check Cooldown
-    cooldown = playerObject.cooldowns.cooldown_by_name(
-      COOLDOWN_TIMES, 'worship', playerObject
+    cooldown: str | None = (
+      playerObject.cooldowns.cooldown_by_name(
+        COOLDOWN_TIMES, 'worship', playerObject
+      )
     )
     if cooldown:
       return await interaction.response.send_message(
@@ -186,14 +191,16 @@ class ActionsCog(commands.Cog):
     # region Dance
     if type.value == 'dance':
       # Choose result based on given weights
-      dance_result = random.choices(
+      dance_result: list[str] = random.choices(
         list(WORSHIP_DANCE_OUTCOMES.keys()),
         WORSHIP_DANCE_WEIGHTS,
       )
-      dance_result = dance_result[0]
+      dance_result: str = dance_result[0]
 
       # Calculate XP
-      xp_result = playerObject.calculate_xp_gauss(25, 5)
+      xp_result: int = playerObject.calculate_xp_gauss(
+        25, 5
+      )
 
       try:
         # Update Favor and XP
@@ -203,7 +210,7 @@ class ActionsCog(commands.Cog):
           amount=WORSHIP_DANCE_OUTCOMES.get(dance_result),
         )
         # If XP meets Required XP, levelled_up contains how many levels
-        levelled_up = await player.update_xp(
+        levelled_up: int | None = await player.update_xp(
           req=self.req,
           player=playerObject,
           amount=xp_result,
@@ -310,10 +317,10 @@ class ActionsCog(commands.Cog):
 
     # Get both players from db
     try:
-      initPlayer = await getPlayerByDiscordId(
+      initPlayer: Player = await getPlayerByDiscordId(
         self.req, discord_id=interaction.user.id
       )
-      targetPlayer = await getPlayerByDiscordId(
+      targetPlayer: Player = await getPlayerByDiscordId(
         self.req, discord_id=target.id
       )
       if initPlayer is ValidationError:
@@ -336,8 +343,10 @@ class ActionsCog(commands.Cog):
       )
 
     # Check cooldown for initiator
-    cooldown = initPlayer.cooldowns.cooldown_by_name(
-      COOLDOWN_TIMES, 'duel'
+    cooldown: str | None = (
+      initPlayer.cooldowns.cooldown_by_name(
+        COOLDOWN_TIMES, 'duel'
+      )
     )
     if cooldown:
       return await interaction.response.send_message(
@@ -345,8 +354,10 @@ class ActionsCog(commands.Cog):
       )
 
     # Check cooldown for target
-    cooldown = targetPlayer.cooldowns.cooldown_by_name(
-      COOLDOWN_TIMES, 'duel', target.name
+    cooldown: str | None = (
+      targetPlayer.cooldowns.cooldown_by_name(
+        COOLDOWN_TIMES, 'duel', target.name
+      )
     )
     if cooldown:
       return await interaction.response.send_message(
@@ -382,25 +393,33 @@ class ActionsCog(commands.Cog):
           raise e
 
         # Roll the Dice
-        initPlayerRoll = random.randint(1, 20)
-        targetPlayerRoll = random.randint(1, 20)
+        initPlayerRoll: int = random.randint(1, 20)
+        targetPlayerRoll: int = random.randint(1, 20)
 
         # If result is a Tie
         if initPlayerRoll == targetPlayerRoll:
           # Calculate XPs (both players get half multiplier)
-          init_xp = initPlayer.calculate_xp_gauss(25, 5)
-          target_xp = targetPlayer.calculate_xp_gauss(25, 5)
+          init_xp: int = initPlayer.calculate_xp_gauss(
+            25, 5
+          )
+          target_xp: int = targetPlayer.calculate_xp_gauss(
+            25, 5
+          )
 
           # Update XPs
           try:
             # Initiator
-            init_levelled_up = await player.update_xp(
+            init_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=initPlayer,
               amount=init_xp,
             )
             # Target
-            target_levelled_up = await player.update_xp(
+            target_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=targetPlayer,
               amount=target_xp,
@@ -436,11 +455,15 @@ class ActionsCog(commands.Cog):
         # If Initiator Wins
         elif initPlayerRoll > targetPlayerRoll:
           # Calculate XP
-          init_xp = initPlayer.calculate_xp_gauss(50, 5)
+          init_xp: int = initPlayer.calculate_xp_gauss(
+            50, 5
+          )
 
           # Update XP
           try:
-            init_levelled_up = await player.update_xp(
+            init_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=initPlayer,
               amount=init_xp,
@@ -466,11 +489,15 @@ class ActionsCog(commands.Cog):
         # If Target Wins
         elif targetPlayerRoll > initPlayerRoll:
           # Calculate XP using gaussian distribution
-          target_xp = targetPlayer.calculate_xp_gauss(50, 5)
+          target_xp: int = targetPlayer.calculate_xp_gauss(
+            50, 5
+          )
 
           # Update XP
           try:
-            target_levelled_up = await player.update_xp(
+            target_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=targetPlayer,
               amount=target_xp,
@@ -523,8 +550,8 @@ class ActionsCog(commands.Cog):
           raise e
 
         # Roll the Dice
-        initPlayerRoll = random.randint(1, 20)
-        targetPlayerRoll = random.randint(1, 20)
+        initPlayerRoll: int = random.randint(1, 20)
+        targetPlayerRoll: int = random.randint(1, 20)
 
         # If result is a Tie
         if initPlayerRoll == targetPlayerRoll:
@@ -536,21 +563,27 @@ class ActionsCog(commands.Cog):
         # If Initiator wins
         elif initPlayerRoll > targetPlayerRoll:
           # Calculate Initiator's XP win
-          init_xp = initPlayer.calculate_xp_gauss(50, 5)
+          init_xp: int = initPlayer.calculate_xp_gauss(
+            50, 5
+          )
 
           # Calculate XP loss for target
-          target_xp = (
+          target_xp: int = (
             targetPlayer.calculate_xp_gauss(50, 5) * -1
           )
 
           # Update XPs
           try:
-            init_levelled_up = await player.update_xp(
+            init_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=initPlayer,
               amount=init_xp,
             )
-            target_levelled_up = await player.update_xp(
+            target_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=targetPlayer,
               amount=target_xp,
@@ -581,21 +614,27 @@ class ActionsCog(commands.Cog):
         # If Target wins
         elif targetPlayerRoll > initPlayerRoll:
           # Calculate Target XP win
-          target_xp = targetPlayer.calculate_xp_gauss(50, 5)
+          target_xp: int = targetPlayer.calculate_xp_gauss(
+            50, 5
+          )
 
           # Calculate Initiator's loss
-          init_xp = (
+          init_xp: int = (
             initPlayer.calculate_xp_gauss(50, 5) * -1
           )
 
           # Update XPs
           try:
-            target_levelled_up = await player.update_xp(
+            target_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=targetPlayer,
               amount=target_xp,
             )
-            init_levelled_up = await player.update_xp(
+            init_levelled_up: (
+              int | None
+            ) = await player.update_xp(
               req=self.req,
               player=initPlayer,
               amount=init_xp,
@@ -678,62 +717,42 @@ class ActionsCog(commands.Cog):
     name='hunt', description='Hunt small mobs.'
   )
   async def hunt(self, interaction: discord.Interaction):
-    req = self.bot.app
-
     # Get Player from DB
     try:
-      playerObject = await getPlayerByDiscordId(
-        req, discord_id=interaction.user.id
+      playerObject: Player = await getPlayerByDiscordId(
+        self.req, discord_id=interaction.user.id
       )
       if playerObject is ValidationError:
-        return await interaction.response.send_message(
-          embed=embeds.ValidationErrorEmbed(
-            extras=' * **`player_cog.py/hunt - getPlayerByDiscordId()`:** `playerObject` is of Type `ValidationError`.',
-            display=True,
-          )
-        )
+        raise playerObject
     except Exception as e:
-      return await interaction.response.send_message(
-        embed=embeds.ExceptionEmbed(extras=e)
-      )
+      raise e
 
     # Check Cooldown
-    timestamp = getattr(playerObject.cooldowns, 'hunt')
-    if timestamp:
-      timeSince = (
-        datetime.now(timezone.utc).timestamp() - timestamp
+    cooldown: str | None = (
+      playerObject.cooldowns.cooldown_by_name(
+        COOLDOWN_TIMES, 'hunt', playerObject
       )
-      timeRemaining = (
-        COOLDOWN_TIMES.get('hunt') * 60
-      ) - timeSince
-      if timeRemaining > 0:
-        minutes, seconds = divmod(timeRemaining, 60)
-        hours, minutes = divmod(minutes, 60)
-        return await interaction.response.send_message(
-          'You have %d:%02d:%02d of cooldown remaining'
-          % (
-            hours,
-            minutes,
-            seconds,
-          )
-        )
+    )
+    if cooldown:
+      return await interaction.response.send_message(
+        cooldown
+      )
 
     # Update Cooldown
     try:
-      await player.start_cooldown(req, playerObject, 'hunt')
-    except Exception as e:
-      return await interaction.response.send_message(
-        embed=embeds.ExceptionEmbed(extras=e)
+      await player.start_cooldown(
+        self.req, playerObject, 'hunt'
       )
+    except Exception as e:
+      raise e
 
     enemy = enemies.Redvelvet()
-    initialhp = playerObject.stats.hp
+    initialhp: int = playerObject.stats.hp
 
     # Player takes turn first
     while playerObject.stats.hp > 0 and enemy.hp > 0:
       # Player's turn
       enemy.hp = enemy.hp - playerObject.stats.atk
-      print(f'New enemy HP: {enemy.hp}')
       # Enemy's turn
       if enemy.hp > 0:
         playerObject.stats.hp = int(
@@ -742,39 +761,36 @@ class ActionsCog(commands.Cog):
             enemy.atk * (80 / 100 + playerObject.stats.dfs)
           )
         )
-        print(f'new hp: {playerObject.stats.hp}')
 
     if playerObject.stats.hp > 0:
       # Calculate XP using gaussian distribution
-      xp_mu = playerObject.stats.level * 35
-      xp_sigma = playerObject.stats.level * 5
-      acq_xp = int(random.gauss(xp_mu, xp_sigma))
+      xp_result: int = playerObject.calculate_xp_gauss(
+        35, 5
+      )
 
       # Update XP and HP
       try:
         # HP First
         await updatePlayer(
-          req, playerObject.id, playerObject
+          self.req, playerObject.id, playerObject
         )
-        print('Updated HP')
 
         # Then XP
-        levelled_up = await player.update_xp(
-          req=req, player=playerObject, amount=acq_xp
+        levelled_up: int | None = await player.update_xp(
+          req=self.req,
+          player=playerObject,
+          amount=xp_result,
         )
-        print('Updated XP')
       except Exception as e:
-        return await interaction.response.send_message(
-          embed=embeds.ExceptionEmbed(extras=e)
-        )
+        raise e
 
       if levelled_up:
         return await interaction.response.send_message(
-          f'**{interaction.user.name}** found and killed a {enemy.name.upper()}.\nGained {acq_xp} XP and lost {initialhp - playerObject.stats.hp} HP. Remaining HP is {playerObject.stats.hp}/{playerObject.stats.maxhp}.\nYou level up {levelled_up} times!'
+          f'**{interaction.user.name}** found and killed a {enemy.name.upper()}.\nGained {xp_result} XP and lost {initialhp - playerObject.stats.hp} HP. Remaining HP is {playerObject.stats.hp}/{playerObject.stats.maxhp}.\nYou level up {levelled_up} times!'
         )
       else:
         return await interaction.response.send_message(
-          f'**{interaction.user.name}** found and killed a {enemy.name.upper()}.\nGained {acq_xp} XP and lost {initialhp - playerObject.stats.hp} HP. Remaining HP is {playerObject.stats.hp}/{playerObject.stats.maxhp}.'
+          f'**{interaction.user.name}** found and killed a {enemy.name.upper()}.\nGained {xp_result} XP and lost {initialhp - playerObject.stats.hp} HP. Remaining HP is {playerObject.stats.hp}/{playerObject.stats.maxhp}.'
         )
     else:
       return await interaction.response.send_message(
