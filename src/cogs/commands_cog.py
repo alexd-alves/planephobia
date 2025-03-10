@@ -1,4 +1,4 @@
-from typing import Optional
+import asyncio
 
 import discord
 from discord import app_commands
@@ -6,11 +6,12 @@ from discord.ext import commands
 
 import utility.embeds as embeds
 from core.items import all_armor, all_consumables
-from db.routes import deletePlayer
+from db.routes import delete_player, list_players
 
 
 class CommandsCog(commands.Cog):
   def __init__(self, bot: commands.Bot) -> None:
+    self.app = bot.app
     self.bot = bot
 
   # A list of item types for testing
@@ -29,9 +30,61 @@ class CommandsCog(commands.Cog):
   async def items(
     self,
     interaction: discord.Interaction,
-    type: Optional[app_commands.Choice[str]],
+    type: app_commands.Choice[str] | None,
   ) -> None:
-    if type.value == 'consumables':
+    if not type:
+      consumables_list = []
+
+      for item in all_consumables:
+        consumables_list.append(
+          '**' + item.name + '** - ' + item.description
+        )
+        consumables_list.append(
+          '* Value: ' + str(item.value) + ' tokens'
+        )
+        consumables_list.append(
+          '* +' + str(item.amount) + ' ' + item.stat
+        )
+      consumables_list = '\n'.join(consumables_list)
+
+      armor_list = []
+
+      for item in all_armor:
+        bonuses = ', '.join(
+          '{}: +{}'.format(*i) for i in item.bonuses.items()
+        )
+
+        armor_list.append(
+          '**'
+          + item.name
+          + '** - '
+          + item.type.capitalize()
+          + '. '
+          + item.description
+        )
+        armor_list.append('* DEF: +' + str(item.amount))
+        armor_list.append('* Also grants: ' + bonuses)
+        armor_list.append(
+          '* Value: ' + str(item.value) + ' tokens'
+        )
+      armor_list = '\n'.join(armor_list)
+
+      items_embed = discord.Embed(
+        title='Available Items',
+        description='The items available are:',
+        type='rich',
+      )
+
+      items_embed.add_field(
+        name='Consumables',
+        value=consumables_list,
+        inline=True,
+      )
+      items_embed.add_field(
+        name='Armor', value=armor_list, inline=True
+      )
+
+    elif type.value == 'consumables':
       item_list = []
 
       for item in all_consumables:
@@ -85,57 +138,6 @@ class CommandsCog(commands.Cog):
       )
 
       items_embed.add_field(name='Armour', value=item_list)
-    else:
-      consumables_list = []
-
-      for item in all_consumables:
-        consumables_list.append(
-          '**' + item.name + '** - ' + item.description
-        )
-        consumables_list.append(
-          '* Value: ' + str(item.value) + ' tokens'
-        )
-        consumables_list.append(
-          '* +' + str(item.amount) + ' ' + item.stat
-        )
-      consumables_list = '\n'.join(consumables_list)
-
-      armor_list = []
-
-      for item in all_armor:
-        bonuses = ', '.join(
-          '{}: +{}'.format(*i) for i in item.bonuses.items()
-        )
-
-        armor_list.append(
-          '**'
-          + item.name
-          + '** - '
-          + item.type.capitalize()
-          + '. '
-          + item.description
-        )
-        armor_list.append('* DEF: +' + str(item.amount))
-        armor_list.append('* Also grants: ' + bonuses)
-        armor_list.append(
-          '* Value: ' + str(item.value) + ' tokens'
-        )
-      armor_list = '\n'.join(armor_list)
-
-      items_embed = discord.Embed(
-        title='Available Items',
-        description='The items available are:',
-        type='rich',
-      )
-
-      items_embed.add_field(
-        name='Consumables',
-        value=consumables_list,
-        inline=True,
-      )
-      items_embed.add_field(
-        name='Armor', value=armor_list, inline=True
-      )
 
     await interaction.response.send_message(
       embed=items_embed
@@ -149,6 +151,15 @@ class CommandsCog(commands.Cog):
   async def help(self, interaction: discord.Interaction):
     await interaction.response.send_message(
       embed=embeds.HelpEmbed()
+    )
+
+  # List All Players
+  @app_commands.command(
+    name='players', description='List all Players.'
+  )
+  async def list(self, interaction: discord.Interaction):
+    await interaction.response.send_message(
+      await list_players(self.app)
     )
 
   # Development utilities
@@ -165,18 +176,18 @@ class CommandsCog(commands.Cog):
       f'Reloaded {extension}.'
     )
 
-  @reload.autocomplete('extension')
-  async def extension_autocomplete(
-    self, interaction: discord.Interaction, current: str
-  ) -> list[app_commands.Choice[str]]:
-    extensions = list(self.bot.extensions.keys())
-    options: list[app_commands.Choice[str]] = []
-    for ext in extensions:
-      if ext.startswith(current):
-        options.append(
-          app_commands.Choice(name=ext, value=ext)
-        )
-    return options[:25]
+  # @reload.autocomplete('extension')
+  # async def extension_autocomplete(
+  #   self, interaction: discord.Interaction, current: str
+  # ) -> list[app_commands.Choice[str]]:
+  #   extensions = list(self.bot.extensions.keys())
+  #   options: list[app_commands.Choice[str]] = []
+  #   for ext in extensions:
+  #     if ext.startswith(current):
+  #       options.append(
+  #         app_commands.Choice(name=ext, value=ext)
+  #       )
+  #   return options[:25]
 
   # Command Sync
   @app_commands.command(
@@ -184,10 +195,15 @@ class CommandsCog(commands.Cog):
   )
   @commands.is_owner()
   async def sync(self, interaction: discord.Interaction):
-    synced = await self.bot.tree.sync()
-    await interaction.response.send_message(
-      f'Synced {len(synced)} commands globally.'
-    )
+    try:
+      synced = await self.bot.tree.sync()
+      await interaction.response.defer()
+      await asyncio.sleep(3)
+      await interaction.followup.send(
+        f'Synced {len(synced)} commands globally.'
+      )
+    except Exception as e:
+      raise e
 
   # Delete Player Record
   @app_commands.command(
@@ -198,25 +214,13 @@ class CommandsCog(commands.Cog):
     interaction: discord.Interaction,
     user: discord.Member,
   ) -> None:
-    req = self.bot.app
-    # player = await getPlayerByDiscordId(req, discord_id=user.id)
     try:
-      await deletePlayer(req, discord_id=user.id)
+      await delete_player(self.app, discord_id=user.id)
       await interaction.response.send_message(
         f'{user.id} has been deleted.'
       )
     except Exception as e:
-      return await interaction.response.send_message(
-        embed=embeds.ExceptionEmbed(extras=e)
-      )
-    # else:
-    #   await interaction.response.send_message(
-    #     embeds=embeds.WarningEmbed(
-    #       title='Player does not exist',
-    #       description='commands_cog.yeet',
-    #       display=True,
-    #     )
-    #   )
+      raise e
 
 
 async def setup(bot: commands.Bot):

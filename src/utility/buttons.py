@@ -2,15 +2,21 @@ import discord
 
 
 class DuelConsentButton(discord.ui.View):
-  def __init__(self, *, timeout: int = 180, init: int, target: int):
+  def __init__(
+    self, *, timeout: int = 180, init: int, target: int
+  ):
     super().__init__(timeout=timeout)
     self.value = None
     self.init = init
     self.target = target
 
-  @discord.ui.button(label='YES', style=discord.ButtonStyle.green)
+  @discord.ui.button(
+    label='YES', style=discord.ButtonStyle.green
+  )
   async def yes(
-    self, interaction: discord.Interaction, button: discord.ui.Button
+    self,
+    interaction: discord.Interaction,
+    button: discord.ui.Button,
   ):
     if interaction.user.id == self.target:
       self.value = True
@@ -19,23 +25,32 @@ class DuelConsentButton(discord.ui.View):
         content='Duel accepted.', view=None
       )
 
-  @discord.ui.button(label='NO', style=discord.ButtonStyle.red)
+  @discord.ui.button(
+    label='NO', style=discord.ButtonStyle.red
+  )
   async def no(
-    self, interaction: discord.Interaction, button: discord.ui.Button
+    self,
+    interaction: discord.Interaction,
+    button: discord.ui.Button,
   ):
     self.stop()
     return await interaction.response.edit_message(
       content='Duel cancelled.', view=None
     )
 
-  async def interaction_check(self, interaction: discord.Interaction):
+  async def interaction_check(
+    self, interaction: discord.Interaction
+  ):
     return (
       interaction.user.id == self.target
       or interaction.user.id == self.init
     )
 
   async def on_error(
-    self, interaction: discord.Interaction, error: Exception, item
+    self,
+    interaction: discord.Interaction,
+    error: Exception,
+    item,
   ):
     return await super().on_error(interaction, error, item)
 
@@ -85,7 +100,10 @@ class PlayerClassButtons(discord.ui.View):
     )
 
   async def on_error(
-    self, interaction: discord.Interaction, error: Exception, item
+    self,
+    interaction: discord.Interaction,
+    error: Exception,
+    item,
   ):
     return await super().on_error(interaction, error, item)
 

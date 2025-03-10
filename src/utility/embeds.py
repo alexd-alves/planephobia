@@ -1,8 +1,9 @@
+import importlib
 from enum import Enum, IntEnum
 
 from discord import Embed, User
 
-from db.models.playerModels import Player, Stats
+from db.models.playerModel import PlayerModel
 
 
 class StrListEnum(list[str], Enum):
@@ -87,8 +88,7 @@ class HelpEmbed(Embed):
 class ProfileEmbed(Embed):
   def __init__(
     self,
-    player: Player,
-    stats: Stats,
+    player: PlayerModel,
     user: User,
     date: str,
   ):
@@ -104,12 +104,12 @@ class ProfileEmbed(Embed):
     self.set_thumbnail(url=user.display_avatar.url)
     self.add_field(
       name='PROGRESS',
-      value=f'**Level**: {stats.level}\n**XP**: {stats.currentxp}/{stats.requiredxp}',
+      value=f'**Level**: {player.stats["level"]}\n**XP**: {player.stats["currentxp"]}/{player.stats["requiredxp"]}',
       inline=False,
     )
     self.add_field(
       name='STATS',
-      value=f':heart: **HP**: {stats.hp}/{stats.maxhp}\n:brain: **SAN**: {stats.san}/{stats.maxsan}\n:dagger: **ATK**: {stats.atk}\n:shield: **DEF**: {stats.dfs}\n*Use `/stats` for more.*',
+      value=f':heart: **HP**: {player.stats["hp"]}/{player.stats["maxhp"]}\n:brain: **SAN**: {player.stats["san"]}/{player.stats["maxsan"]}\n:dagger: **ATK**: {player.stats["atk"]}\n:shield: **DEF**: {player.stats["dfs"]}\n*Use `/stats` for more.*',
       inline=True,
     )
     self.add_field(
@@ -122,15 +122,66 @@ class ProfileEmbed(Embed):
 
 # Stats Embed
 class StatsEmbed(Embed):
-  def __init__(self, stats: Stats, user: User):
+  def __init__(self, player: PlayerModel, user: User):
     super().__init__(
       color=EmbedColors.DEFAULT,
       title='ALL STATS',
-      description=f':heart: **Health**: {stats.hp}/{stats.maxhp}\n :brain: **Sanity**: {stats.san}/{stats.maxsan}\n :dagger: **Attack**: {stats.atk}\n :shield: **Defense**: {stats.dfs}\n :bulb: **Resistance**: {stats.rst}\n :eye: **Perception**: {stats.per}\n :footprints: **Stealth**: {stats.sth}',
+      description=f':heart: **Health**: {player.stats["hp"]}/{player.stats["maxhp"]}\n :brain: **Sanity**: {player.stats["san"]}/{player.stats["maxsan"]}\n :dagger: **Attack**: {player.stats["atk"]}\n :shield: **Defense**: {player.stats["dfs"]}\n :bulb: **Resistance**: {player.stats["rst"]}\n :eye: **Perception**: {player.stats["per"]}\n :footprints: **Stealth**: {player.stats["sth"]}',
     )
     self.set_author(
       name=f'{user.name} - stats',
       icon_url=user.display_avatar.url,
+    )
+
+
+# Inventory Embed
+class InventoryEmbed(Embed):
+  def __init__(self, player: PlayerModel):
+    inventory = ''
+    if (
+      player.inventory is None or len(player.inventory) <= 0
+    ):
+      inventory = 'Your inventory is empty.'
+    else:
+      for key in player.inventory.keys():
+        # Get the item
+        ItemClass = getattr(
+          importlib.import_module('core.items'), key
+        )
+        item = ItemClass()
+
+        inventory = (
+          inventory
+          + f'**{item.name}**: {player.inventory[key]}\n'
+        )
+
+    super().__init__(
+      color=EmbedColors.DEFAULT,
+      title='INVENTORY',
+      description=f'{inventory}',
+    )
+
+
+# Cooldowns Embed
+class CooldownsEmbed(Embed):
+  def __init__(self, cooldowns: dict):
+    cooldowns_string = ''
+    for key in cooldowns.keys():
+      if cooldowns[key] == 'Ready':
+        cooldowns_string = (
+          cooldowns_string
+          + f':white_check_mark: `/{key}`: {cooldowns[key]}\n'
+        )
+      else:
+        cooldowns_string = (
+          cooldowns_string
+          + f':watch: `/{key}`: {cooldowns[key]}\n'
+        )
+
+    super().__init__(
+      color=EmbedColors.DEFAULT,
+      title='COOLDOWNS',
+      description=cooldowns_string,
     )
 
 

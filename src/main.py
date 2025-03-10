@@ -67,18 +67,29 @@ class PlanephobiaBot(commands.Bot):
         f'Extension directory {self.ext_dir} does not exist.'
       )
       return
-    for filename in os.listdir(os.path.abspath(self.ext_dir)):
-      if filename.endswith('.py') and not filename.startswith('_'):
+    for filename in os.listdir(
+      os.path.abspath(self.ext_dir)
+    ):
+      if filename.endswith(
+        '.py'
+      ) and not filename.startswith('_'):
         try:
-          await self.load_extension(f'{self.ext_dir}.{filename[:-3]}')
-          self.logger.info(f'Loaded extension {filename[:-3]}')
+          await self.load_extension(
+            f'{self.ext_dir}.{filename[:-3]}'
+          )
+          self.logger.info(
+            f'Loaded extension {filename[:-3]}'
+          )
         except commands.ExtensionError:
           self.logger.error(
             f'Failed to load extension {filename[:-3]}\n{traceback.format_exc()}'
           )
 
   async def on_error(
-    self, event_method: str, *args: typing.Any, **kwargs: typing.Any
+    self,
+    event_method: str,
+    *args: typing.Any,
+    **kwargs: typing.Any,
   ) -> None:
     if (
       isinstance(args[0], discord.HTTPException)
@@ -103,7 +114,9 @@ class PlanephobiaBot(commands.Bot):
       )
 
   async def on_ready(self) -> None:
-    self.logger.info(f'Logged in as {self.user} ({self.user.id})')
+    self.logger.info(
+      f'Logged in as {self.user} ({self.user.id})'
+    )
 
   async def setup_hook(self) -> None:
     self.client = aiohttp.ClientSession()
@@ -117,10 +130,14 @@ class PlanephobiaBot(commands.Bot):
     await super().close()
     await self.client.close()
 
-  def run(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+  def run(
+    self, *args: typing.Any, **kwargs: typing.Any
+  ) -> None:
     load_dotenv()
     try:
-      super().run(str(os.getenv('DISCORD_TOKEN')), *args, **kwargs)
+      super().run(
+        str(os.getenv('DISCORD_TOKEN')), *args, **kwargs
+      )
     except (discord.LoginFailure, KeyboardInterrupt):
       self.logger.info('Exiting...')
       exit()
@@ -137,17 +154,23 @@ class PlanephobiaBot(commands.Bot):
 
 def main() -> None:
   # Set up uvicorn for db
-  config = uvicorn.Config(app=app, host='localhost', port=5000)
+  config = uvicorn.Config(app=app, host='localhost')
   server = Server(config=config)
   with server.run_in_thread():
-    address, port = server.config.bind_socket().getsockname()
-    print(f'HTTP server is running on http://{address}.{port}')
+    address, port = (
+      server.config.bind_socket().getsockname()
+    )
+    print(
+      f'HTTP server is running on http://{address}.{port}'
+    )
 
     logging.basicConfig(
       level=logging.INFO,
       format='[%(asctime)s] %(levelname)s: %(message)s',
     )
-    bot = PlanephobiaBot(prefix='!', ext_dir='cogs', app=app)
+    bot = PlanephobiaBot(
+      prefix='!', ext_dir='cogs', app=app
+    )
 
     bot.run()
 
