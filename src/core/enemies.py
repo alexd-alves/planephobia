@@ -1,5 +1,4 @@
 class Enemy:
-  # Base class for all enemies
   def __init__(
     self,
     name: str,
@@ -7,6 +6,14 @@ class Enemy:
     description: str,
     drops: dict[str, float],
   ) -> None:
+    """Base class for all enemies.
+
+    Args:
+        name (str): Enemy's name.
+        emoji (str): Enemy's emoji representation.
+        description (str): Enemy's description.
+        drops (dict[str, float]): Dictionary of potential loot drops and probabilities.
+    """
     self.name = name
     self.emoji = emoji
     self.description = description
@@ -14,7 +21,8 @@ class Enemy:
 
 
 class Mob(Enemy):
-  # Mobs only get one turn to either die or kill the Player
+  """Base class for mobs. Mobs only get one turn to either die or kill the Player."""
+
   def __init__(
     self,
     name: str,

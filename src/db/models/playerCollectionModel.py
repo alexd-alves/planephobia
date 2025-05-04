@@ -6,10 +6,6 @@ from db.models.playerModel import PlayerModel
 
 
 class PlayerCollection(BaseModel):
-  """
-  A container holding a list of `PlayerModel` instances.
-
-  This is to avoid top-level array JSON vulnerability.
-  """
+  """A container holding a list of `PlayerModel` instances to avoid top-level array JSON vulnerability."""
 
   players: List[PlayerModel]

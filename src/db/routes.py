@@ -22,9 +22,10 @@ router = APIRouter()
   response_model_by_alias=False,
 )
 async def add_player(app, player: PlayerModel = Body(...)):
-  """
-  Insert a new Player record.
-  Unique `id` will be created and provided in response.
+  """Inserts a new Player record into player database.
+
+  Returns:
+      any: A generated unique `id`.
   """
   new_player = await app.players.insert_one(
     player.model_dump(by_alias=True, exclude=['id'])
@@ -43,8 +44,10 @@ async def add_player(app, player: PlayerModel = Body(...)):
   response_model_by_alias=False,
 )
 async def list_players(app):
-  """
-  List all player data. Response is limited to 1000 results.
+  """Lists all player records. Response is limited to 1000 results.
+
+  Returns:
+      PlayerCollection: A container holding a list of `PlayerModel` instances.
   """
   return PlayerCollection(
     players=await app.players.find({}, {'_id': 0}).to_list(
@@ -60,8 +63,16 @@ async def list_players(app):
   response_model_by_alias=False,
 )
 async def get_player(app, discord_id: int):
-  """
-  Get the record for a specific Player, looked up by `discord_id`.
+  """Gets the record for a specific Player record.
+
+  Args:
+    discord_id (int): Required Player's Discord id.
+
+  Raises:
+      HTTPException: Unable to find a Player with provided Discord id.
+
+  Returns:
+      PlayerModel: Found Player record.
   """
   if (
     player := await app.players.find_one(
@@ -79,8 +90,16 @@ async def get_player(app, discord_id: int):
   '/{id}', response_description='Delete a Player'
 )
 async def delete_player(app, discord_id: int):
-  """
-  Remove a single Player from the database.
+  """Deletes a specific Player record.
+
+  Args:
+      discord_id (int): Discord id for Player to be deleted.
+
+  Raises:
+      HTTPException: Unable to find Player by provided Discord id.
+
+  Returns:
+      Response: Status code HTTP 204 No Content.
   """
   delete_result = await app.players.delete_one(
     {'discord_id': discord_id}
@@ -106,10 +125,17 @@ async def update_player(
   discord_id: int,
   player: UpdatePlayerModel = Body(...),
 ):
-  """
-  Update individual fields of an existing Player record.
+  """Updates individual Player record.
 
-  Only provided fields are updated, missing or `null` are ignored.
+  Args:
+      discord_id (int): Discord id of Player to be updated.
+      player (UpdatePlayerModel, optional): New set of Player data. Ignores null fields. Defaults to Body(...).
+
+  Raises:
+      HTTPException: Unable to find Player by specified Discord id.
+
+  Returns:
+      PlayerMode: New Player record or existing record if update is empty.
   """
   player = {
     k: v

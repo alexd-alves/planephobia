@@ -19,8 +19,9 @@ from fastapi import FastAPI
 from db.db_app import app
 
 
-# Context manager to ensure db server starts and stops correctly
 class Server(uvicorn.Server):
+  """Custom Uvicorn Server class used as a context manager to ensure the DB server starts and stops correctly."""
+
   @contextlib.contextmanager
   def run_in_thread(self) -> Generator:
     thread = threading.Thread(target=self.run)
@@ -34,8 +35,9 @@ class Server(uvicorn.Server):
       thread.join()
 
 
-# Core Bot
 class PlanephobiaBot(commands.Bot):
+  """Core Planephobia bot class."""
+
   client: aiohttp.ClientSession
   _uptime: datetime.datetime = datetime.timezone.utc
 
@@ -47,6 +49,13 @@ class PlanephobiaBot(commands.Bot):
     *args: typing.Any,
     **kwargs: typing.Any,
   ) -> None:
+    """Initiate the Bot.
+
+    Args:
+        prefix (str): Prefix for players to call Bot commands.
+        ext_dir (str): External directory where cogs are stored.
+        app (FastAPI): FastAPI.
+    """
     intents = discord.Intents.all()
     intents.members = True
     intents.message_content = True
@@ -62,6 +71,7 @@ class PlanephobiaBot(commands.Bot):
     self.synced = True
 
   async def _load_extensions(self) -> None:
+    """Loads the Bot's cogs."""
     if not os.path.isdir(self.ext_dir):
       self.logger.error(
         f'Extension directory {self.ext_dir} does not exist.'
@@ -91,6 +101,7 @@ class PlanephobiaBot(commands.Bot):
     *args: typing.Any,
     **kwargs: typing.Any,
   ) -> None:
+    """Handles Bot errors including Discord rate limits."""
     if (
       isinstance(args[0], discord.HTTPException)
       and args[0].status == 429
@@ -144,18 +155,23 @@ class PlanephobiaBot(commands.Bot):
 
   @property
   def user(self) -> discord.ClientUser:
+    """str: Returns the Bot's username once logged on."""
     assert super().user, 'Bot is not ready yet'
     return typing.cast(discord.ClientUser, super().user)
 
   @property
   def uptime(self) -> datetime.timedelta:
+    """Returns the Bot's uptime."""
     return datetime.timezone.utc - self._uptime
 
 
 def main() -> None:
+  """Main function. Sets up Uvicorn, Logging and the Bot itself."""
   # Set up uvicorn for db
   config = uvicorn.Config(app=app, host='localhost')
   server = Server(config=config)
+
+  # Run uvicorn on a separate thread
   with server.run_in_thread():
     address, port = (
       server.config.bind_socket().getsockname()
@@ -164,10 +180,12 @@ def main() -> None:
       f'HTTP server is running on http://{address}.{port}'
     )
 
+    # Set up logging
     logging.basicConfig(
       level=logging.INFO,
       format='[%(asctime)s] %(levelname)s: %(message)s',
     )
+    # Set up and run bot
     bot = PlanephobiaBot(
       prefix='!', ext_dir='cogs', app=app
     )

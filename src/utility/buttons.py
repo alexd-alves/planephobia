@@ -5,6 +5,13 @@ class DuelConsentButton(discord.ui.View):
   def __init__(
     self, *, timeout: int = 180, init: int, target: int
   ):
+    """Creates a Discord button set for Players to agree to Duel.
+
+    Args:
+        init (int): Discord id of Player initiating the Duel.
+        target (int): Discord id of Player being targeted.
+        timeout (int, optional): Seconds until interaction times out. Defaults to 180.
+    """
     super().__init__(timeout=timeout)
     self.value = None
     self.init = init
@@ -68,6 +75,11 @@ class DuelConsentButton(discord.ui.View):
 
 class PlayerClassButtons(discord.ui.View):
   def __init__(self, *, timeout: int = 180):
+    """Creates a Discord button set for Players to choose a class.
+
+    Args:
+        timeout (int, optional): Seconds until interaction times out. Defaults to 180.
+    """
     super().__init__(timeout=timeout)
     self.value = None
 

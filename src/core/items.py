@@ -1,5 +1,6 @@
 class Item:
-  # Base class for all items
+  """Base class for all items."""
+
   def __init__(
     self,
     name: str,
@@ -13,7 +14,6 @@ class Item:
     self.value = value
 
 
-# Consumables can be consumed and change a stat
 class Consumable(Item):
   def __init__(
     self,
@@ -24,6 +24,16 @@ class Consumable(Item):
     stat: str,
     amount: int,
   ):
+    """Consumables can be consumed to alter a stat.
+
+    Args:
+        name (str): Name of the consumable.
+        emoji (str): Emoji representation of the consumable.
+        description (str): Description of the consumable.
+        value (int): Token value of the consumable.
+        stat (str): Stat the consumable modifies.
+        amount (int): Amount to modify the stat by.
+    """
     super().__init__(name, emoji, description, value)
     self.stat = stat
     self.amount = amount
@@ -78,7 +88,6 @@ class Sprinkles(Consumable):
     )
 
 
-# Armor can be worn to increase DEF and can grant other bonuses
 class Armor(Item):
   def __init__(
     self,
@@ -90,6 +99,17 @@ class Armor(Item):
     amount: int,
     bonuses: dict,
   ):
+    """Armor can be worn to increase DEF and can grant other bonuses
+
+    Args:
+        name (str): Name of the armor.
+        emoji (str): Emoji representation of the armor.
+        description (str): Description of the armor.
+        value (int): Token value of the armor.
+        type (str): Type of armor, e.g.: helmet.
+        amount (int): Modifier to be applied to DEF.
+        bonuses (dict): Dictionary of other stat bonuses.
+    """
     super().__init__(name, emoji, description, value)
     self.type = type
     self.amount = amount

@@ -7,15 +7,21 @@ from db.models.playerModel import PlayerModel
 
 
 class StrListEnum(list[str], Enum):
+  """Custom Enum for lists of strings."""
+
   pass
 
 
 class EmbedColors(IntEnum):
+  """Enum of color codes for Discord Embeds."""
+
   ERROR = 0x992D22
   DEFAULT = 0x2C2F33
 
 
 class EmbedText(StrListEnum):
+  """Enum of string lists for Embed text."""
+
   HELP_DEV = [
     '* `/sync`: Re-sync all commands globally.',
     '* `/reload`: Reload an extension after changes. Use to avoid restarting application after command changes.',
@@ -45,6 +51,8 @@ class EmbedText(StrListEnum):
 
 
 class ExceptionEmbed(Embed):
+  """Discord Embed for Exceptions."""
+
   def __init__(self, title: str, desc: str) -> None:
     super().__init__(
       color=EmbedColors.ERROR,
@@ -54,6 +62,8 @@ class ExceptionEmbed(Embed):
 
 
 class HelpEmbed(Embed):
+  """Discord Embed for Help command."""
+
   def __init__(self):
     super().__init__(
       color=EmbedColors.DEFAULT,
@@ -84,8 +94,9 @@ class HelpEmbed(Embed):
 # region Player Commands
 
 
-# Player Profile
 class ProfileEmbed(Embed):
+  """Discord Embed for Profile command."""
+
   def __init__(
     self,
     player: PlayerModel,
@@ -120,8 +131,9 @@ class ProfileEmbed(Embed):
     self.set_footer(text=f'Playing since {date}')
 
 
-# Stats Embed
 class StatsEmbed(Embed):
+  """Discord Embed for Stats command."""
+
   def __init__(self, player: PlayerModel, user: User):
     super().__init__(
       color=EmbedColors.DEFAULT,
@@ -134,8 +146,9 @@ class StatsEmbed(Embed):
     )
 
 
-# Inventory Embed
 class InventoryEmbed(Embed):
+  """Discord Embed for Inventory command."""
+
   def __init__(self, player: PlayerModel):
     inventory = ''
     if (
@@ -162,8 +175,9 @@ class InventoryEmbed(Embed):
     )
 
 
-# Cooldowns Embed
 class CooldownsEmbed(Embed):
+  """Discord Embed for Cooldowns command."""
+
   def __init__(self, cooldowns: dict):
     cooldowns_string = ''
     for key in cooldowns.keys():

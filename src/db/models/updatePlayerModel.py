@@ -5,8 +5,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class UpdatePlayerModel(BaseModel):
-  """
-  Optional updates to be made to a document in the DB.
+  """Container for updating an existing Player record.
+
+  Args:
+      BaseModel: Pydantic base model.
   """
 
   # Primary key stored as str on the instance

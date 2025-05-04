@@ -15,8 +15,13 @@ PyObjectId = Annotated[str, BeforeValidator(str)]
 
 
 class PlayerModel(BaseModel):
-  """
-  Container for a single Player record.
+  """Container for single Player record.
+
+  Args:
+      BaseModel: Pydantic base model.
+
+  Returns:
+      _type_: _description_
   """
 
   # Primary key stored as str on the instance
